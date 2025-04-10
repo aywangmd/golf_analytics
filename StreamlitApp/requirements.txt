@@ -1,0 +1,3 @@
+langchain
+matplotlib.pyplot
+langchain_deepseek

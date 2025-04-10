@@ -3,3 +3,4 @@ matplotlib
 langchain_deepseek
 scikit-learn
 streamlit_geolocation
+seaborn

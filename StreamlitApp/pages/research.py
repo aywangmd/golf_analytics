@@ -9,6 +9,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import r2_score, mean_squared_error as mse
 import scipy
 from auth import get_user_shots
+import seaborn as sns
 
 # Check if user is logged in
 if 'user_id' not in st.session_state or not st.session_state.user_id:
@@ -202,63 +203,90 @@ options = st.multiselect(
 create_heatmap(df[options[0]], df[options[1]], df['Carry'], options[0], options[1], f'Heatmap of {options[0]} and {options[1]}')    
 
 # Optimal Ranges Visualization
-st.write("### Optimal Ranges for Each Feature")
+st.write("### Optimal Ranges by Feature Interactions")
 
-# Create a DataFrame for optimal ranges
-optimal_data = []
-for feature, (low, high) in st.session_state.research_data['optimal_ranges'].items():
-    optimal_data.append({
-        'Feature': feature,
-        'Optimal Low': low,
-        'Optimal High': high,
-        'Range': high - low
-    })
+# Read and process the optimal ranges data
+optimal_df = pd.read_csv('optimal_ranges_combo.csv')
+optimal_df = optimal_df.set_index("Unnamed: 0")
+labels = optimal_df.columns.tolist()
+optimal_df = optimal_df.loc[labels, labels]
+data = optimal_df.fillna("").values.tolist()
 
-optimal_df = pd.DataFrame(optimal_data)
+def get_range_width(cell):
+    try:
+        nums = eval(cell)
+        return nums[1] - nums[0]
+    except:
+        return np.nan
 
-# Display optimal ranges in a table
-st.write("#### Optimal Ranges Table")
-st.dataframe(optimal_df.style.format({
-    'Optimal Low': '{:.2f}',
-    'Optimal High': '{:.2f}',
-    'Range': '{:.2f}'
-}))
+value_matrix = np.array([
+    [get_range_width(cell) for cell in row]
+    for row in data
+])
 
-# Create visualizations for each feature's optimal range
-st.write("#### Optimal Ranges Visualization")
-for feature in optimal_df['Feature']:
-    # Get the optimal range for this feature
-    low, high = st.session_state.research_data['optimal_ranges'][feature]
-    
-    # Create a figure
-    fig, ax = plt.subplots(figsize=(10, 2))
-    
-    # Create a horizontal bar
-    ax.barh(0, high - low, left=low, color='lightgreen', alpha=0.5)
-    
-    # Add markers for optimal range
-    ax.axvline(x=low, color='red', linestyle='--', alpha=0.7)
-    ax.axvline(x=high, color='red', linestyle='--', alpha=0.7)
-    
-    # Add text labels
-    ax.text(low, 0, f'{low:.1f}', ha='right', va='center', color='red')
-    ax.text(high, 0, f'{high:.1f}', ha='left', va='center', color='red')
-    
-    # Set plot properties
-    ax.set_yticks([])
-    ax.set_xlabel(feature)
-    ax.set_title(f'Optimal Range for {feature}')
-    
-    # Add current value marker if available
-    if 'user_shots' in st.session_state and st.session_state.user_shots:
-        user_shots_df = pd.DataFrame(st.session_state.user_shots)
-        if feature in user_shots_df.columns:
-            current_value = user_shots_df[feature].mean()
-            ax.axvline(x=current_value, color='blue', linestyle='-', alpha=0.7)
-            ax.text(current_value, 0.5, f'Your Avg: {current_value:.1f}', 
-                   ha='center', va='center', color='blue')
-    
-    st.pyplot(fig)
+fig, ax = plt.subplots(figsize=(30, 20))
+diag = np.diag(value_matrix)
+diff_from_diag = np.abs(value_matrix - diag[np.newaxis, :])
+percent_diff = np.abs(value_matrix - diag[np.newaxis, :]) / np.abs(diag[np.newaxis, :])
+
+masked_array = np.ma.masked_invalid(percent_diff)
+
+c = ax.imshow(masked_array, cmap='coolwarm')
+
+for i in range(len(labels)):
+    for j in range(len(labels)):
+        if data[i][j] != "":
+            if i == j:
+                try:
+                    nums = eval(data[i][j])
+                    rounded_text = f"({nums[0]:.2f}, {nums[1]:.2f})"
+                except:
+                    rounded_text = data[i][j]
+                ax.text(j, i, rounded_text, ha='center', va='center', color='white', fontsize=15, weight='bold')
+
+                ax.add_patch(plt.Rectangle((i-.5, i-.5), 1, 1, fill=True, color='midnightblue', edgecolor='black'))
+            else:
+                try:
+                    nums = eval(data[i][j])
+                    rounded_text = f"({nums[0]:.2f}, {nums[1]:.2f})"
+                except:
+                    rounded_text = data[i][j]
+                ax.text(j, i, rounded_text, ha='center', va='center', fontsize=15)
+
+ax.set_xticks(np.arange(len(labels)))
+ax.set_yticks(np.arange(len(labels)))
+ax.set_xticklabels(labels, fontsize=30, rotation = 90)
+ax.set_yticklabels(labels, fontsize=30)
+
+cbar = fig.colorbar(c, ax=ax)
+cbar.ax.tick_params(labelsize=20)  
+cbar.set_label("Percentage Difference from Diagonal", fontsize = 20)  
+
+st.pyplot(fig)
+st.markdown("""
+This matrix visualization shows the optimal ranges for different combinations of golf shot features. 
+- The diagonal (dark blue) represents the optimal range for each individual feature
+- The off-diagonal cells show the optimal ranges when considering pairs of features together
+- The color intensity indicates the width of the optimal range (darker = wider range)
+- This helps identify which feature combinations have the most flexibility in their optimal values
+""")
+
+# Correlation Between Column Feature and Row Feature 
+st.write("### Correlation Between Column Feature and Row Feature ")
+
+features = [
+    "Club Speed", "Ball Speed", "Launch Angle", "Spin Rate", "Face Angle",
+    "Face to Path", "Club Path", "Attack Angle", "Launch Direction"
+]
+
+df = pd.DataFrame(value_matrix, index=features, columns=features)
+
+correlation_matrix = df.corr(method='pearson')
+
+plt.figure(figsize=(10, 8))
+sns.heatmap(correlation_matrix, annot=True, cmap='coolwarm', vmin=-1, vmax=1)
+plt.tight_layout()
+st.pyplot(plt)
 
 # At the end, update the final research data
 st.session_state.research_data.update({

@@ -8,7 +8,6 @@ from sklearn.svm import SVR
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import r2_score, mean_squared_error as mse
 import scipy
-from auth import get_user_shots
 import seaborn as sns
 
 # Check if user is logged in

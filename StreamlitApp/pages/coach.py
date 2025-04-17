@@ -23,7 +23,7 @@ st.set_page_config(page_title="Virtual Golf Coach")
 st.title("Virtual Golf Coach")
 
 # ---- API Key Input ----
-deepseek_api_key = os.getenv("API_KEY")
+deepseek_api_key = os.getenv("DEEPSEEK_API_KEY")
 
 # ---- Load Research Data ----
 def load_research_data():

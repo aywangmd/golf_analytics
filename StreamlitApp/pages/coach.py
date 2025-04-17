@@ -8,7 +8,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import r2_score, mean_squared_error as mse
 import os
-import python-dotenv
+import python_dotenv
 from auth import get_user_shots
 load_dotenv()  # Load environment variables from .env
 

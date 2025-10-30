@@ -44,6 +44,7 @@ st.markdown("""
 - **🌎 Geospatial Shot Mapping** – Visualize your shots on an interactive map and predict landing zones.
 - **📊 AI-Powered Insights** – Leverage data-driven recommendations based on research from **Golf Galaxy's dataset**.
 - **📈 Performance Trends** – Track your improvement over time with historical shot analytics.
+- **🎯 Round Simulation** – Simulate 10,000 rounds using your personal shot distributions and course data.
 """)
 
 # Highlight Section
@@ -60,6 +61,22 @@ st.markdown('</div>', unsafe_allow_html=True)
 st.markdown("""
 Ready to enhance your game? Start by logging your shots and asking the **Virtual Coach** a question! 🎯
 """)
+
+# Quick Access Buttons
+st.markdown("### 🚀 Quick Access")
+col1, col2, col3 = st.columns(3)
+
+with col1:
+    if st.button("🏌️ Virtual Coach", use_container_width=True):
+        st.switch_page("pages/coach.py")
+
+with col2:
+    if st.button("🎯 Round Simulation", use_container_width=True):
+        st.switch_page("pages/golf_simulation.py")
+
+with col3:
+    if st.button("📊 Player Data", use_container_width=True):
+        st.switch_page("pages/playerdata.py")
 
 # Logout button
 if st.button("Logout"):

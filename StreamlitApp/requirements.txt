@@ -5,3 +5,9 @@ scikit-learn
 streamlit_geolocation
 seaborn
 python-dotenv
+ 
+# Core app dependencies
+streamlit
+pandas
+numpy
+networkx

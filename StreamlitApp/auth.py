@@ -35,6 +35,10 @@ def init_db():
             club_path REAL NOT NULL,
             attack_angle REAL NOT NULL,
             launch_direction REAL NOT NULL,
+            origin_lat REAL,
+            origin_lon REAL,
+            destination_lat REAL,
+            destination_lon REAL,
             timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (user_id) REFERENCES users (id)
         )
@@ -105,8 +109,9 @@ def save_user_shot(user_id, shot_data):
         INSERT INTO shots (
             user_id, shot_type, carry, club_speed, ball_speed,
             launch_angle, spin_rate, face_angle, face_to_path,
-            club_path, attack_angle, launch_direction
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            club_path, attack_angle, launch_direction,
+            origin_lat, origin_lon, destination_lat, destination_lon
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ''', (
         user_id,
         shot_data['Shot Type'],
@@ -119,7 +124,11 @@ def save_user_shot(user_id, shot_data):
         shot_data['Face to Path (Deg)'],
         shot_data['Club Path (Deg)'],
         shot_data['Attack Angle (Deg)'],
-        shot_data['Launch Direction (Deg)']
+        shot_data['Launch Direction (Deg)'],
+        shot_data.get('Origin Latitude', None),
+        shot_data.get('Origin Longitude', None),
+        shot_data.get('Destination Latitude', None),
+        shot_data.get('Destination Longitude', None)
     ))
     
     conn.commit()

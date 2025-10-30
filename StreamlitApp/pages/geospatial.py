@@ -77,13 +77,32 @@ if not user_shots:
     st.warning("No shot data available. Please log some shots first.")
     st.stop()
 
-# Convert shots to DataFrame
-shots_df = pd.DataFrame(user_shots, columns=[
-    'id', 'user_id', 'Shot Type', 'Carry (yards)', 'Club Speed (MPH)',
-    'Ball Speed (MPH)', 'Launch Angle (Deg)', 'Spin Rate (RPM)',
-    'Face Angle (Deg)', 'Face to Path (Deg)', 'Club Path (Deg)',
-    'Attack Angle (Deg)', 'Launch Direction (Deg)', 'timestamp'
-])
+# Convert shots to DataFrame - handle variable number of columns
+if len(user_shots) > 0:
+    first_shot_columns = len(user_shots[0])
+    
+    if first_shot_columns == 14:  # Old format without location data
+        shots_df = pd.DataFrame(user_shots, columns=[
+            'id', 'user_id', 'Shot Type', 'Carry (yards)', 'Club Speed (MPH)',
+            'Ball Speed (MPH)', 'Launch Angle (Deg)', 'Spin Rate (RPM)',
+            'Face Angle (Deg)', 'Face to Path (Deg)', 'Club Path (Deg)',
+            'Attack Angle (Deg)', 'Launch Direction (Deg)', 'timestamp'
+        ])
+        # Add empty location columns
+        shots_df['Origin Latitude'] = None
+        shots_df['Origin Longitude'] = None
+        shots_df['Destination Latitude'] = None
+        shots_df['Destination Longitude'] = None
+    else:  # New format with location data
+        shots_df = pd.DataFrame(user_shots, columns=[
+            'id', 'user_id', 'Shot Type', 'Carry (yards)', 'Club Speed (MPH)',
+            'Ball Speed (MPH)', 'Launch Angle (Deg)', 'Spin Rate (RPM)',
+            'Face Angle (Deg)', 'Face to Path (Deg)', 'Club Path (Deg)',
+            'Attack Angle (Deg)', 'Launch Direction (Deg)', 'Origin Latitude',
+            'Origin Longitude', 'Destination Latitude', 'Destination Longitude', 'timestamp'
+        ])
+else:
+    shots_df = pd.DataFrame()
 
 # Convert numeric columns
 numeric_columns = [

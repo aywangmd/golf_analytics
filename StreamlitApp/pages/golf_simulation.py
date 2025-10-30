@@ -97,10 +97,10 @@ if st.button("🔄 Refresh Shot Data"):
 
 if shots_df.empty:
     st.error("No shot data found! Please add some shots first.")
-    st.write("**Debug Info:**")
-    st.write(f"- User ID: {st.session_state.user_id}")
-    st.write(f"- Raw shots from database: {len(get_user_shots(st.session_state.user_id))}")
-    st.write("- Make sure you have added shots through the Player Data page")
+    # st.write("**Debug Info:**")
+    # st.write(f"- User ID: {st.session_state.user_id}")
+    # st.write(f"- Raw shots from database: {len(get_user_shots(st.session_state.user_id))}")
+    # st.write("- Make sure you have added shots through the Player Data page")
     
     # Show raw data for debugging
     raw_shots = get_user_shots(st.session_state.user_id)

@@ -6,6 +6,10 @@ from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.preprocessing import LabelEncoder
 from auth import get_user_shots
+import geopandas as gpd
+import matplotlib.pyplot as plt
+from shapely import wkt
+from shapely.affinity import translate, rotate
 
 st.set_page_config(page_title="Golf Course Simulation", page_icon="⛳")
 st.markdown("# Golf Course Simulation")
@@ -22,8 +26,8 @@ if 'user_id' not in st.session_state or not st.session_state.user_id:
 #     index=0,
 # )
 
-# # Hole selection
-# hole_number = st.number_input("Select Hole Number:", min_value=1, max_value=18, step=1)
+# Hole selection
+hole_number = st.number_input("Select Hole Number:", min_value=1, max_value=18, step=1)
 
 # Simulation parameters
 num_simulations = 1
@@ -326,3 +330,126 @@ for i, simulation in enumerate(all_simulations):
     # st.markdown(f"#### Simulation {i+1}")
     st.dataframe(simulation[['shot_type', 'distance_to_hole']], hide_index=True)
     st.write(f"Total Shots: {len(simulation)}")
+
+def geoplot_single(data, name):
+    if 'geometry' not in data.columns:
+        data['geometry'] = data['WKT'].apply(wkt.loads)
+    
+    gdf = gpd.GeoDataFrame(data, geometry='geometry', crs="EPSG:4326")
+
+    # Plot
+    fig, ax = plt.subplots(figsize=(8, 8))
+    gdf.plot(ax=ax, color='green', edgecolor='black', alpha=0.5)
+
+    # Add labels
+    for idx, row in gdf.iterrows():
+        centroid = row.geometry.centroid
+        ax.text(centroid.x, centroid.y, str(idx), fontsize=9, ha='center', color='black')
+
+    # plot the data
+    ax.set_title(name)
+    plt.xlabel("Longitude")
+    plt.ylabel("Latitude")
+    st.pyplot(fig)
+
+# Hide these in a toggle
+show_geoplot = st.checkbox("Show Geoplots", value=True)
+if show_geoplot:
+    with st.expander("Geoplots"):
+        greens = gpd.read_file("StreamlitApp/pages/data/greens.csv")
+        geoplot_single(greens, "Greens")
+        greens['hole'] = [1, 2, 3, 4, 5, 6, 7, 8, 18, 10, 11, 12, 13, 6, 15, 16, 4, 18]
+        greens = greens[['hole'] + [col for col in greens.columns if col != 'hole']]
+
+
+        fairways = gpd.read_file("StreamlitApp/pages/data/fairways.csv")
+        geoplot_single(fairways, "Fairways")
+        fairways['hole'] = [1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]
+        fairways = fairways[['hole'] + [col for col in fairways.columns if col != 'hole']]
+
+        bunkers = gpd.read_file("StreamlitApp/pages/data/bunkers.csv")
+        geoplot_single(bunkers, "Bunkers")
+        # bunkers['hole'] = [1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]
+        # bunkers = bunkers[['hole'] + [col for col in bunkers.columns if col != 'hole']]
+
+        tees = gpd.read_file("StreamlitApp/pages/data/tees.csv")
+        geoplot_single(tees, "Tees")
+        tees['hole'] = [1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29]
+        tees = tees[['hole'] + [col for col in tees.columns if col != 'hole']]
+
+
+# plot all the shapes of a hole together
+def geoplot_hole_latlon(hole_number):
+    fig, ax = plt.subplots(figsize=(8, 8))
+    
+    hole_greens = greens[greens['hole'] == hole_number]
+    hole_fairways = fairways[fairways['hole'] == hole_number]
+    # hole_bunkers = bunkers[bunkers['hole'] == hole_number]
+    hole_tees = tees[tees['hole'] == hole_number]
+    
+    if not hole_fairways.empty:
+        hole_fairways.plot(ax=ax, color='sandybrown', edgecolor='black', alpha=0.5, label='Fairways')
+    if not hole_greens.empty:
+        hole_greens.plot(ax=ax, color='lightgreen', edgecolor='black', alpha=0.7, label='Greens')
+    # if not hole_bunkers.empty:
+    #     hole_bunkers.plot(ax=ax, color='burlywood', edgecolor='black', alpha=0.5, label='Bunkers')
+    if not hole_tees.empty:
+        hole_tees.plot(ax=ax, color='blue', edgecolor='black', alpha=0.5, label='Tees')
+    
+    ax.set_title(f'Hole {hole_number}')
+    plt.xlabel("Longitude")
+    plt.ylabel("Latitude")
+    plt.legend()
+    st.pyplot(fig)
+    
+geoplot_hole_latlon(hole_number)
+
+def geoplot_hole(hole_number):
+    fig, ax = plt.subplots(figsize=(8, 8))
+    
+    hole_greens = greens[greens['hole'] == hole_number].copy()
+    hole_fairways = fairways[fairways['hole'] == hole_number].copy()
+    hole_tees = tees[tees['hole'] == hole_number].copy()
+    
+    # --- Find the tee location ---
+    tee_centroid = hole_tees.geometry.unary_union.centroid
+    
+    # --- Translate so tee is at (0,0) ---
+    hole_tees['geometry'] = hole_tees.translate(xoff=-tee_centroid.x, yoff=-tee_centroid.y)
+    hole_fairways['geometry'] = hole_fairways.translate(xoff=-tee_centroid.x, yoff=-tee_centroid.y)
+    hole_greens['geometry'] = hole_greens.translate(xoff=-tee_centroid.x, yoff=-tee_centroid.y)
+    
+    # --- Compute rotation angle so hole aligns vertically ---
+    green_centroid = hole_greens.geometry.unary_union.centroid
+    dx = green_centroid.x
+    dy = green_centroid.y
+    angle = np.degrees(np.arctan2(dx, dy))  # rotate so green is "up"
+    
+    hole_tees['geometry'] = hole_tees.rotate(angle, origin=(0,0))
+    hole_fairways['geometry'] = hole_fairways.rotate(angle, origin=(0,0))
+    hole_greens['geometry'] = hole_greens.rotate(angle, origin=(0,0))
+    
+    # --- Convert coordinates to yards (assuming CRS is meters) ---
+    # meters_to_yards = 1.09361
+    latitude_to_yards = 69 * 1760  # approx yards per degree latitude
+    longitude_to_yards = 69 * 1760 * np.cos(np.radians(tee_centroid.y))  # approx yards per degree longitude at given latitude
+    hole_tees['geometry'] = hole_tees.scale(xfact=longitude_to_yards, yfact=latitude_to_yards, origin=(0,0))
+    hole_fairways['geometry'] = hole_fairways.scale(xfact=longitude_to_yards, yfact=latitude_to_yards, origin=(0,0))
+    hole_greens['geometry'] = hole_greens.scale(xfact=longitude_to_yards, yfact=latitude_to_yards, origin=(0,0))
+    
+    # --- Plot everything ---
+    if not hole_fairways.empty:
+        hole_fairways.plot(ax=ax, color='sandybrown', edgecolor='black', alpha=0.5, label='Fairways')
+    if not hole_greens.empty:
+        hole_greens.plot(ax=ax, color='lightgreen', edgecolor='black', alpha=0.7, label='Greens')
+    if not hole_tees.empty:
+        hole_tees.plot(ax=ax, color='blue', edgecolor='black', alpha=0.5, label='Tees')
+    
+    ax.set_title(f'Hole {hole_number}')
+    plt.xlabel("Yards Left/Right of Line of Play")
+    plt.ylabel("Yards from Tee")
+    plt.legend()
+    plt.axis('equal')
+    st.pyplot(fig)
+
+geoplot_hole(hole_number)

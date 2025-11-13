@@ -331,78 +331,78 @@ for i, simulation in enumerate(all_simulations):
     st.dataframe(simulation[['shot_type', 'distance_to_hole']], hide_index=True)
     st.write(f"Total Shots: {len(simulation)}")
 
-def geoplot_single(data, name):
-    if 'geometry' not in data.columns:
-        data['geometry'] = data['WKT'].apply(wkt.loads)
+# def geoplot_single(data, name):
+#     if 'geometry' not in data.columns:
+#         data['geometry'] = data['WKT'].apply(wkt.loads)
     
-    gdf = gpd.GeoDataFrame(data, geometry='geometry', crs="EPSG:4326")
+#     gdf = gpd.GeoDataFrame(data, geometry='geometry', crs="EPSG:4326")
 
-    # Plot
-    fig, ax = plt.subplots(figsize=(8, 8))
-    gdf.plot(ax=ax, color='green', edgecolor='black', alpha=0.5)
+#     # Plot
+#     fig, ax = plt.subplots(figsize=(8, 8))
+#     gdf.plot(ax=ax, color='green', edgecolor='black', alpha=0.5)
 
-    # Add labels
-    for idx, row in gdf.iterrows():
-        centroid = row.geometry.centroid
-        ax.text(centroid.x, centroid.y, str(idx), fontsize=9, ha='center', color='black')
+#     # Add labels
+#     for idx, row in gdf.iterrows():
+#         centroid = row.geometry.centroid
+#         ax.text(centroid.x, centroid.y, str(idx), fontsize=9, ha='center', color='black')
 
-    # plot the data
-    ax.set_title(name)
-    plt.xlabel("Longitude")
-    plt.ylabel("Latitude")
-    st.pyplot(fig)
+#     # plot the data
+#     ax.set_title(name)
+#     plt.xlabel("Longitude")
+#     plt.ylabel("Latitude")
+#     st.pyplot(fig)
 
-# Hide these in a toggle
-show_geoplot = st.checkbox("Show Geoplots", value=True)
-if show_geoplot:
-    with st.expander("Geoplots"):
-        greens = gpd.read_file("StreamlitApp/pages/data/greens.csv")
-        geoplot_single(greens, "Greens")
-        greens['hole'] = [1, 2, 3, 4, 5, 6, 7, 8, 18, 10, 11, 12, 13, 6, 15, 16, 4, 18]
-        greens = greens[['hole'] + [col for col in greens.columns if col != 'hole']]
-
-
-        fairways = gpd.read_file("StreamlitApp/pages/data/fairways.csv")
-        geoplot_single(fairways, "Fairways")
-        fairways['hole'] = [1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]
-        fairways = fairways[['hole'] + [col for col in fairways.columns if col != 'hole']]
-
-        bunkers = gpd.read_file("StreamlitApp/pages/data/bunkers.csv")
-        geoplot_single(bunkers, "Bunkers")
-        # bunkers['hole'] = [1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]
-        # bunkers = bunkers[['hole'] + [col for col in bunkers.columns if col != 'hole']]
-
-        tees = gpd.read_file("StreamlitApp/pages/data/tees.csv")
-        geoplot_single(tees, "Tees")
-        tees['hole'] = [1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29]
-        tees = tees[['hole'] + [col for col in tees.columns if col != 'hole']]
+# # Hide these in a toggle
+# show_geoplot = st.checkbox("Show Geoplots", value=True)
+# if show_geoplot:
+#     with st.expander("Geoplots"):
+#         greens = gpd.read_file("StreamlitApp/pages/data/greens.csv")
+#         geoplot_single(greens, "Greens")
+#         greens['hole'] = [1, 2, 3, 4, 5, 6, 7, 8, 18, 10, 11, 12, 13, 6, 15, 16, 4, 18]
+#         greens = greens[['hole'] + [col for col in greens.columns if col != 'hole']]
 
 
-# plot all the shapes of a hole together
-def geoplot_hole_latlon(hole_number):
-    fig, ax = plt.subplots(figsize=(8, 8))
+#         fairways = gpd.read_file("StreamlitApp/pages/data/fairways.csv")
+#         geoplot_single(fairways, "Fairways")
+#         fairways['hole'] = [1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]
+#         fairways = fairways[['hole'] + [col for col in fairways.columns if col != 'hole']]
+
+#         bunkers = gpd.read_file("StreamlitApp/pages/data/bunkers.csv")
+#         geoplot_single(bunkers, "Bunkers")
+#         # bunkers['hole'] = [1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]
+#         # bunkers = bunkers[['hole'] + [col for col in bunkers.columns if col != 'hole']]
+
+#         tees = gpd.read_file("StreamlitApp/pages/data/tees.csv")
+#         geoplot_single(tees, "Tees")
+#         tees['hole'] = [1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29]
+#         tees = tees[['hole'] + [col for col in tees.columns if col != 'hole']]
+
+
+# # plot all the shapes of a hole together
+# def geoplot_hole_latlon(hole_number):
+#     fig, ax = plt.subplots(figsize=(8, 8))
     
-    hole_greens = greens[greens['hole'] == hole_number]
-    hole_fairways = fairways[fairways['hole'] == hole_number]
-    # hole_bunkers = bunkers[bunkers['hole'] == hole_number]
-    hole_tees = tees[tees['hole'] == hole_number]
+#     hole_greens = greens[greens['hole'] == hole_number]
+#     hole_fairways = fairways[fairways['hole'] == hole_number]
+#     # hole_bunkers = bunkers[bunkers['hole'] == hole_number]
+#     hole_tees = tees[tees['hole'] == hole_number]
     
-    if not hole_fairways.empty:
-        hole_fairways.plot(ax=ax, color='palegreem', edgecolor='black', alpha=0.5, label='Fairways')
-    if not hole_greens.empty:
-        hole_greens.plot(ax=ax, color='darkgreen', edgecolor='black', alpha=0.7, label='Greens')
-    # if not hole_bunkers.empty:
-    #     hole_bunkers.plot(ax=ax, color='yellow', edgecolor='black', alpha=0.5, label='Bunkers')
-    if not hole_tees.empty:
-        hole_tees.plot(ax=ax, color='blue', edgecolor='black', alpha=0.5, label='Tees')
+#     if not hole_fairways.empty:
+#         hole_fairways.plot(ax=ax, color='palegreem', edgecolor='black', alpha=0.5, label='Fairways')
+#     if not hole_greens.empty:
+#         hole_greens.plot(ax=ax, color='darkgreen', edgecolor='black', alpha=0.7, label='Greens')
+#     # if not hole_bunkers.empty:
+#     #     hole_bunkers.plot(ax=ax, color='yellow', edgecolor='black', alpha=0.5, label='Bunkers')
+#     if not hole_tees.empty:
+#         hole_tees.plot(ax=ax, color='blue', edgecolor='black', alpha=0.5, label='Tees')
     
-    ax.set_title(f'Hole {hole_number}')
-    plt.xlabel("Longitude")
-    plt.ylabel("Latitude")
-    plt.legend()
-    st.pyplot(fig)
+#     ax.set_title(f'Hole {hole_number}')
+#     plt.xlabel("Longitude")
+#     plt.ylabel("Latitude")
+#     plt.legend()
+#     st.pyplot(fig)
     
-geoplot_hole_latlon(hole_number)
+# geoplot_hole_latlon(hole_number)
 
 def geoplot_hole(hole_number):
     fig, ax = plt.subplots(figsize=(8, 8))

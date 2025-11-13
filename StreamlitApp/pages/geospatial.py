@@ -221,7 +221,7 @@ layers = [
         "PolygonLayer",
         data=[{
             "coordinates": hole_data["fairway"],
-            "color": [0, 128, 0, 100]
+            "color": [152, 251, 152, 120]
         }],
         get_polygon="coordinates",
         get_fill_color="color",
@@ -238,7 +238,7 @@ layers = [
                 (hole_data["green"][0] + 0.00005, hole_data["green"][1] + 0.00005),
                 (hole_data["green"][0] - 0.00005, hole_data["green"][1] + 0.00005)
             ],
-            "color": [0, 255, 0, 100]
+            "color": [0, 100, 0, 120]
         }],
         get_polygon="coordinates",
         get_fill_color="color",
@@ -255,7 +255,7 @@ if show_hazards:
                 "PolygonLayer",
                 data=[{
                     "coordinates": hazard["coordinates"],
-                    "color": [139, 69, 19, 100] if hazard["type"] == "bunker" else [0, 0, 255, 100]
+                    "color": [255, 255, 0, 120] if hazard["type"] == "bunker" else [0, 0, 255, 100]
                 }],
                 get_polygon="coordinates",
                 get_fill_color="color",
@@ -388,11 +388,11 @@ def geoplot_hole_latlon(hole_number):
     hole_tees = tees[tees['hole'] == hole_number]
     
     if not hole_fairways.empty:
-        hole_fairways.plot(ax=ax, color='sandybrown', edgecolor='black', alpha=0.5, label='Fairways')
+        hole_fairways.plot(ax=ax, color='palegreem', edgecolor='black', alpha=0.5, label='Fairways')
     if not hole_greens.empty:
-        hole_greens.plot(ax=ax, color='lightgreen', edgecolor='black', alpha=0.7, label='Greens')
+        hole_greens.plot(ax=ax, color='darkgreen', edgecolor='black', alpha=0.7, label='Greens')
     # if not hole_bunkers.empty:
-    #     hole_bunkers.plot(ax=ax, color='burlywood', edgecolor='black', alpha=0.5, label='Bunkers')
+    #     hole_bunkers.plot(ax=ax, color='yellow', edgecolor='black', alpha=0.5, label='Bunkers')
     if not hole_tees.empty:
         hole_tees.plot(ax=ax, color='blue', edgecolor='black', alpha=0.5, label='Tees')
     

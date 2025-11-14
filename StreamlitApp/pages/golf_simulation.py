@@ -7,6 +7,9 @@ from scipy import stats
 from sklearn.mixture import GaussianMixture
 import sqlite3
 from auth import get_user_shots, init_db
+import geopandas as gpd
+from shapely.geometry import Point
+from shapely.affinity import translate, rotate, scale
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -21,7 +24,32 @@ if 'user_id' not in st.session_state:
     st.stop()
 
 st.title("🏌️ Golf Round Simulation")
-st.markdown("Simulate 10,000 rounds using your personal shot distributions")
+st.markdown("Simulate 10,000 rounds using your personal shot distributions and actual course geometry")
+
+# Load hole geometry data
+@st.cache_data
+def load_hole_geometry():
+    """Load hole geometry data (greens, fairways, bunkers, tees)"""
+    try:
+        greens = gpd.read_file("StreamlitApp/pages/data/greens.csv")
+        greens['hole'] = [1, 2, 3, 4, 5, 6, 7, 8, 18, 10, 11, 12, 13, 6, 15, 16, 4, 18]
+        
+        fairways = gpd.read_file("StreamlitApp/pages/data/fairways.csv")
+        fairways['hole'] = [1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]
+        
+        bunkers = gpd.read_file("StreamlitApp/pages/data/bunkers.csv")
+        bunkers['hole'] = [1, 1, 1, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 2, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 11, 12, 13, 14, 15, 16, 17, 18, 12, 3, 4, 5, 6, 7]
+        
+        tees = gpd.read_file("StreamlitApp/pages/data/tees.csv")
+        tees['hole'] = [1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29]
+        
+        return greens, fairways, bunkers, tees
+    except Exception as e:
+        st.warning(f"Could not load hole geometry data: {e}")
+        return None, None, None, None
+
+# Load geometry data
+greens, fairways, bunkers, tees = load_hole_geometry()
 
 # Load user shot data
 def load_user_shots(user_id):
@@ -30,28 +58,13 @@ def load_user_shots(user_id):
     if not shots:
         return pd.DataFrame()
     
-    # Handle variable number of columns (old vs new format)
+    # Load shots into DataFrame
     if len(shots) > 0:
-        first_shot_columns = len(shots[0])
-        
-        if first_shot_columns == 14:  # Old format without location data
-            df = pd.DataFrame(shots, columns=[
-                'id', 'user_id', 'shot_type', 'carry', 'club_speed',
-                'ball_speed', 'launch_angle', 'spin_rate', 'face_angle',
-                'face_to_path', 'club_path', 'attack_angle', 'launch_direction', 'timestamp'
-            ])
-            # Add empty location columns
-            df['origin_lat'] = None
-            df['origin_lon'] = None
-            df['destination_lat'] = None
-            df['destination_lon'] = None
-        else:  # New format with location data
-            df = pd.DataFrame(shots, columns=[
-                'id', 'user_id', 'shot_type', 'carry', 'club_speed',
-                'ball_speed', 'launch_angle', 'spin_rate', 'face_angle',
-                'face_to_path', 'club_path', 'attack_angle', 'launch_direction',
-                'origin_lat', 'origin_lon', 'destination_lat', 'destination_lon', 'timestamp'
-            ])
+        df = pd.DataFrame(shots, columns=[
+            'id', 'user_id', 'shot_type', 'carry', 'club_speed',
+            'ball_speed', 'launch_angle', 'spin_rate', 'face_angle',
+            'face_to_path', 'club_path', 'attack_angle', 'launch_direction', 'timestamp'
+        ])
     else:
         df = pd.DataFrame()
     
@@ -67,11 +80,7 @@ def load_user_shots(user_id):
         'face_to_path': 'Face to Path (Deg)',
         'club_path': 'Club Path (Deg)',
         'attack_angle': 'Attack Angle (Deg)',
-        'launch_direction': 'Launch Direction (Deg)',
-        'origin_lat': 'Origin Latitude',
-        'origin_lon': 'Origin Longitude',
-        'destination_lat': 'Destination Latitude',
-        'destination_lon': 'Destination Longitude'
+        'launch_direction': 'Launch Direction (Deg)'
     })
     
     # Convert numeric columns
@@ -126,18 +135,64 @@ st.write(shot_type_counts)
 # Course setup sidebar
 st.sidebar.header("🏌️ Course Setup")
 
-# Course distances input
-st.sidebar.subheader("Course Distances (yards)")
-hole_distances = []
-for i in range(18):
-    distance = st.sidebar.number_input(
-        f"Hole {i+1} Distance", 
-        min_value=100, 
-        max_value=600, 
-        value=400 if i < 4 else 350 if i < 8 else 300 if i < 12 else 250 if i < 16 else 200,
-        key=f"hole_{i+1}"
-    )
-    hole_distances.append(distance)
+# Hole selection for geometry-based simulation
+use_geometry = st.sidebar.checkbox("Use Actual Course Geometry", value=True)
+
+if use_geometry and greens is not None:
+    st.sidebar.subheader("Hole Selection")
+    selected_hole = st.sidebar.number_input("Select Hole Number", min_value=1, max_value=18, value=1)
+    
+    # Get available holes from geometry data
+    available_holes = sorted(set(greens['hole'].dropna().unique()) & 
+                            set(fairways['hole'].dropna().unique()) &
+                            set(tees['hole'].dropna().unique()))
+    
+    if selected_hole not in available_holes:
+        st.sidebar.warning(f"Hole {selected_hole} geometry not available. Using hole {available_holes[0] if available_holes else 1}.")
+        selected_hole = available_holes[0] if available_holes else 1
+    
+    # Calculate hole distances from geometry
+    def get_hole_distance(hole_num):
+        """Calculate hole distance from tee to green centroid"""
+        try:
+            hole_tees = tees[tees['hole'] == hole_num]
+            hole_greens = greens[greens['hole'] == hole_num]
+            
+            if not hole_tees.empty and not hole_greens.empty:
+                tee_centroid = hole_tees.geometry.unary_union.centroid
+                green_centroid = hole_greens.geometry.unary_union.centroid
+                
+                # Calculate distance in degrees
+                lat_diff = green_centroid.y - tee_centroid.y
+                lon_diff = green_centroid.x - tee_centroid.x
+                
+                # Convert to yards (approximate)
+                lat_yards = lat_diff * 69 * 1760  # degrees to yards
+                lon_yards = lon_diff * 69 * 1760 * np.cos(np.radians(tee_centroid.y))
+                
+                distance = np.sqrt(lat_yards**2 + lon_yards**2)
+                return int(distance)
+        except:
+            pass
+        return 400  # Default distance
+    
+    # Get distances for all 18 holes
+    hole_distances = [get_hole_distance(i+1) for i in range(18)]
+    
+else:
+    # Manual distance input
+    st.sidebar.subheader("Course Distances (yards)")
+    hole_distances = []
+    for i in range(18):
+        distance = st.sidebar.number_input(
+            f"Hole {i+1} Distance", 
+            min_value=100, 
+            max_value=600, 
+            value=400 if i < 4 else 350 if i < 8 else 300 if i < 12 else 250 if i < 16 else 200,
+            key=f"hole_{i+1}"
+        )
+        hole_distances.append(distance)
+    selected_hole = None
 
 # Course difficulty settings
 st.sidebar.subheader("Course Difficulty")
@@ -151,12 +206,20 @@ n_simulations = st.sidebar.slider("Number of Rounds", 1000, 50000, 10000, 1000)
 show_details = st.sidebar.checkbox("Show Detailed Analysis", value=False)
 
 class GolfSimulator:
-    def __init__(self, shots_df, hole_distances, rough_penalty=15, bunker_penalty=25, wind_factor=1.0):
+    def __init__(self, shots_df, hole_distances, rough_penalty=15, bunker_penalty=25, wind_factor=1.0,
+                 greens=None, fairways=None, bunkers=None, tees=None, use_geometry=False):
         self.shots_df = shots_df
         self.hole_distances = hole_distances
         self.rough_penalty = rough_penalty / 100
         self.bunker_penalty = bunker_penalty / 100
         self.wind_factor = wind_factor
+        self.use_geometry = use_geometry
+        
+        # Store geometry data
+        self.greens = greens
+        self.fairways = fairways
+        self.bunkers = bunkers
+        self.tees = tees
         
         # Create shot type distributions
         self.shot_distributions = self._create_shot_distributions()
@@ -164,7 +227,7 @@ class GolfSimulator:
         # Define course states
         self.states = ["Tee", "Fairway", "Rough", "Bunker", "Green", "Hole"]
         
-        # State distance thresholds (as percentages of hole distance)
+        # State distance thresholds (as percentages of hole distance) - fallback if no geometry
         self.state_thresholds = {
             "Tee": 1.0,      # Start at 100% of hole distance
             "Fairway": 0.7,   # Fairway ends at 70% of hole distance
@@ -173,6 +236,57 @@ class GolfSimulator:
             "Green": 0.05,   # Green starts at 5% of hole distance
             "Hole": 0.0      # Hole at 0% of hole distance
         }
+    
+    def _get_hole_geometry(self, hole_num):
+        """Get geometry for a specific hole"""
+        if not self.use_geometry or self.greens is None:
+            return None, None, None, None
+        
+        try:
+            hole_greens = self.greens[self.greens['hole'] == hole_num]
+            hole_fairways = self.fairways[self.fairways['hole'] == hole_num]
+            hole_bunkers = self.bunkers[self.bunkers['hole'] == hole_num]
+            hole_tees = self.tees[self.tees['hole'] == hole_num]
+            
+            return hole_greens, hole_fairways, hole_bunkers, hole_tees
+        except:
+            return None, None, None, None
+    
+    def _determine_state_from_geometry(self, lat, lon, hole_num):
+        """Determine state based on actual geometry (point-in-polygon check)"""
+        if not self.use_geometry:
+            return None
+        
+        point = Point(lon, lat)  # Note: Point takes (x, y) = (lon, lat)
+        
+        hole_greens, hole_fairways, hole_bunkers, hole_tees = self._get_hole_geometry(hole_num)
+        
+        if hole_greens is None:
+            return None
+        
+        # Check in order: Green, Bunker, Fairway, Tee (most specific first)
+        if not hole_greens.empty:
+            for _, green in hole_greens.iterrows():
+                if green.geometry.contains(point) or green.geometry.buffer(0.00001).contains(point):
+                    return "Green"
+        
+        if hole_bunkers is not None and not hole_bunkers.empty:
+            for _, bunker in hole_bunkers.iterrows():
+                if bunker.geometry.contains(point) or bunker.geometry.buffer(0.00001).contains(point):
+                    return "Bunker"
+        
+        if not hole_fairways.empty:
+            for _, fairway in hole_fairways.iterrows():
+                if fairway.geometry.contains(point) or fairway.geometry.buffer(0.00001).contains(point):
+                    return "Fairway"
+        
+        if not hole_tees.empty:
+            for _, tee in hole_tees.iterrows():
+                if tee.geometry.contains(point) or tee.geometry.buffer(0.00001).contains(point):
+                    return "Tee"
+        
+        # If not in any defined area, assume rough
+        return "Rough"
         
     def _create_shot_distributions(self):
         """Create probability distributions for each shot type based on player history"""
@@ -285,41 +399,178 @@ class GolfSimulator:
         else:
             return "Iron Shot"
     
-    def _calculate_transition_probabilities(self, current_state, distance_to_hole, hole_distance):
+    def _sample_shot_features(self, shot_type):
+        """Sample all relevant shot features from user's distributions"""
+        if shot_type not in self.shot_distributions:
+            # Fallback to generic values
+            return {
+                'face_to_path': np.random.normal(0, 3),
+                'launch_direction': np.random.normal(0, 2),
+                'launch_angle': np.random.normal(12, 3),
+                'spin_rate': np.random.normal(3000, 500)
+            }
+        
+        acc_info = self.shot_distributions[shot_type]['accuracy']
+        
+        # Sample from user's actual distributions
+        face_to_path = np.random.normal(
+            acc_info['face_to_path_mean'],
+            acc_info['face_to_path_std']
+        )
+        launch_direction = np.random.normal(
+            acc_info['launch_direction_mean'],
+            acc_info['launch_direction_std']
+        )
+        
+        # Get additional features if available
+        shot_data = self.shots_df[self.shots_df['Shot Type'] == shot_type]
+        
+        launch_angle = shot_data['Launch Angle (Deg)'].mean() if len(shot_data) > 0 else 12
+        launch_angle_std = shot_data['Launch Angle (Deg)'].std() if len(shot_data) > 1 else 3
+        launch_angle = np.random.normal(launch_angle, launch_angle_std)
+        
+        spin_rate = shot_data['Spin Rate (RPM)'].mean() if len(shot_data) > 0 else 3000
+        spin_rate_std = shot_data['Spin Rate (RPM)'].std() if len(shot_data) > 1 else 500
+        spin_rate = np.random.normal(spin_rate, spin_rate_std)
+        
+        return {
+            'face_to_path': face_to_path,
+            'launch_direction': launch_direction,
+            'launch_angle': launch_angle,
+            'spin_rate': spin_rate
+        }
+    
+    def _calculate_landing_position(self, start_lat, start_lon, target_lat, target_lon, shot_distance, 
+                                   face_to_path, launch_direction, current_state):
+        """Calculate landing position based on shot distance, face-to-path, and launch direction"""
+        # Calculate direction to target
+        lat_diff = target_lat - start_lat
+        lon_diff = target_lon - start_lon
+        
+        # Calculate bearing (angle from north)
+        target_bearing = np.arctan2(lon_diff, lat_diff)
+        
+        # Apply face-to-path error (affects left/right)
+        # Positive face-to-path = ball goes right
+        lateral_error = np.radians(face_to_path * 2)  # Scale factor for effect
+        
+        # Apply launch direction error (affects overall direction)
+        directional_error = np.radians(launch_direction)
+        
+        # Combine errors
+        bearing = target_bearing + lateral_error + directional_error
+        
+        # Adjust for current state (rough/bunker reduce accuracy)
+        if current_state == "Rough":
+            bearing += np.radians(np.random.normal(0, self.rough_penalty * 2))
+        elif current_state == "Bunker":
+            bearing += np.radians(np.random.normal(0, self.bunker_penalty * 2))
+        
+        # Convert shot distance from yards to degrees (approximate)
+        distance_deg = shot_distance / (69 * 1760)  # yards to degrees
+        
+        # Calculate landing position
+        end_lat = start_lat + (distance_deg * np.cos(bearing))
+        end_lon = start_lon + (distance_deg * np.sin(bearing))
+        
+        return end_lat, end_lon, face_to_path, launch_direction
+    
+    def _calculate_transition_probabilities(self, current_state, distance_to_hole, hole_distance, 
+                                          current_lat=None, current_lon=None, target_lat=None, target_lon=None, hole_num=None):
         """Calculate transition probabilities based on shot distributions and distance"""
+        # Initialize landing position variables
+        landing_lat = None
+        landing_lon = None
+        face_to_path = None
+        launch_direction = None
+        
         shot_type = self._determine_next_shot_type(distance_to_hole, current_state, 1)
         
         # Sample shot distance
         shot_distance = self._sample_shot_distance(shot_type, hole_distance)
         
-        # Determine accuracy-based landing state
-        landing_state = self._determine_shot_accuracy(shot_type, current_state)
+        # Sample all shot features from user's distributions
+        shot_features = self._sample_shot_features(shot_type)
+        face_to_path = shot_features['face_to_path']
+        launch_direction = shot_features['launch_direction']
         
-        # Calculate new distance after shot
-        new_distance = max(0, distance_to_hole - shot_distance)
+        # If using geometry, calculate actual landing position
+        if self.use_geometry and current_lat is not None and current_lon is not None and target_lat is not None and target_lon is not None:
+            landing_lat, landing_lon, face_to_path, launch_direction = self._calculate_landing_position(
+                current_lat, current_lon, target_lat, target_lon, shot_distance, 
+                face_to_path, launch_direction, current_state
+            )
+            
+            # Determine state from geometry
+            geometry_state = self._determine_state_from_geometry(landing_lat, landing_lon, hole_num)
+            
+            if geometry_state is not None:
+                final_state = geometry_state
+            else:
+                # Fallback to distance-based
+                new_distance = max(0, distance_to_hole - shot_distance)
+                final_state = self._determine_state_from_distance(new_distance, hole_distance)
+        else:
+            # Use distance-based state determination (fallback)
+            # Still use face-to-path and launch direction to determine accuracy
+            total_error = abs(face_to_path) + abs(launch_direction)
+            
+            landing_state = "Fairway"
+            if total_error > 5:
+                landing_state = "Bunker"
+            elif total_error > 2:
+                landing_state = "Rough"
+            
+            new_distance = max(0, distance_to_hole - shot_distance)
+            final_state = self._determine_state_from_distance(new_distance, hole_distance)
+            
+            # Override with accuracy-based state if it's worse
+            state_hierarchy = {"Tee": 0, "Fairway": 1, "Rough": 2, "Bunker": 3, "Green": 4, "Hole": 5}
+            if state_hierarchy[landing_state] > state_hierarchy[final_state]:
+                final_state = landing_state
         
-        # Determine final state based on distance thresholds
-        distance_ratio = new_distance / hole_distance
+        # Don't set to "Hole" here - let simulate_hole handle completion
+        # This ensures the final position is recorded as "Green" for visualization
+        return final_state, shot_distance, landing_lat, landing_lon, face_to_path, launch_direction
+    
+    def _get_accuracy_error(self, shot_type, current_state):
+        """Get accuracy error in degrees"""
+        if shot_type not in self.shot_distributions:
+            face_to_path_error = np.random.normal(0, 3)
+            launch_direction_error = np.random.normal(0, 2)
+        else:
+            acc_info = self.shot_distributions[shot_type]['accuracy']
+            face_to_path_error = np.random.normal(acc_info['face_to_path_mean'], acc_info['face_to_path_std'])
+            launch_direction_error = np.random.normal(acc_info['launch_direction_mean'], acc_info['launch_direction_std'])
+        
+        # Adjust accuracy based on current state
+        if current_state == "Rough":
+            face_to_path_error *= (1 + self.rough_penalty)
+            launch_direction_error *= (1 + self.rough_penalty)
+        elif current_state == "Bunker":
+            face_to_path_error *= (1 + self.bunker_penalty)
+            launch_direction_error *= (1 + self.bunker_penalty)
+        
+        # Combine errors (approximate)
+        total_error = np.sqrt(face_to_path_error**2 + launch_direction_error**2)
+        return total_error
+    
+    def _determine_state_from_distance(self, distance_to_hole, hole_distance):
+        """Determine state based on distance thresholds (fallback method)"""
+        distance_ratio = distance_to_hole / hole_distance if hole_distance > 0 else 0
         
         if distance_ratio <= self.state_thresholds["Hole"]:
-            final_state = "Hole"
+            return "Hole"
         elif distance_ratio <= self.state_thresholds["Green"]:
-            final_state = "Green"
+            return "Green"
         elif distance_ratio <= self.state_thresholds["Bunker"]:
-            final_state = "Bunker"
+            return "Bunker"
         elif distance_ratio <= self.state_thresholds["Rough"]:
-            final_state = "Rough"
+            return "Rough"
         elif distance_ratio <= self.state_thresholds["Fairway"]:
-            final_state = "Fairway"
+            return "Fairway"
         else:
-            final_state = "Tee"
-        
-        # Override with accuracy-based state if it's worse
-        state_hierarchy = {"Tee": 0, "Fairway": 1, "Rough": 2, "Bunker": 3, "Green": 4, "Hole": 5}
-        if state_hierarchy[landing_state] > state_hierarchy[final_state]:
-            final_state = landing_state
-        
-        return final_state, shot_distance
+            return "Tee"
     
     def simulate_hole(self, hole_distance, hole_number):
         """Simulate a single hole using Markov chain transitions"""
@@ -327,33 +578,84 @@ class GolfSimulator:
         current_state = "Tee"
         distance_to_hole = hole_distance
         
+        # Get starting and target positions from geometry if available
+        current_lat, current_lon = None, None
+        target_lat, target_lon = None, None
+        
+        if self.use_geometry:
+            hole_greens, hole_fairways, hole_bunkers, hole_tees = self._get_hole_geometry(hole_number)
+            
+            if not hole_tees.empty and not hole_greens.empty:
+                # Start at tee centroid
+                tee_centroid = hole_tees.geometry.unary_union.centroid
+                current_lat, current_lon = tee_centroid.y, tee_centroid.x
+                
+                # Target is green centroid
+                green_centroid = hole_greens.geometry.unary_union.centroid
+                target_lat, target_lon = green_centroid.y, green_centroid.x
+        
         # Track shot sequence for analysis
         shot_sequence = []
         
-        while current_state != "Hole" and strokes < 10:  # Max 10 strokes per hole
+        final_state = "Green"
+
+        while current_state != final_state and strokes < 15:  # Max 10 strokes per hole
             # Calculate transition probabilities and sample next state
-            next_state, shot_distance = self._calculate_transition_probabilities(
-                current_state, distance_to_hole, hole_distance
+            next_state, shot_distance, landing_lat, landing_lon, face_to_path, launch_direction = self._calculate_transition_probabilities(
+                current_state, distance_to_hole, hole_distance,
+                current_lat, current_lon, target_lat, target_lon, hole_number
             )
             
-            # Update state and distance
+            # Update position if using geometry
+            if self.use_geometry and landing_lat is not None and landing_lon is not None:
+                current_lat, current_lon = landing_lat, landing_lon
+                
+                # Recalculate distance to hole based on actual position
+                if target_lat is not None and target_lon is not None:
+                    lat_diff = target_lat - current_lat
+                    lon_diff = target_lon - current_lon
+                    lat_yards = lat_diff * 69 * 1760
+                    lon_yards = lon_diff * 69 * 1760 * np.cos(np.radians(current_lat))
+                    distance_to_hole = np.sqrt(lat_yards**2 + lon_yards**2)
+                else:
+                    distance_to_hole = max(0, distance_to_hole - shot_distance)
+            else:
+                # Update distance based on shot distance
+                distance_to_hole = max(0, distance_to_hole - shot_distance)
+            
+            # Update state
             current_state = next_state
-            distance_to_hole = max(0, distance_to_hole - shot_distance)
             strokes += 1
             
-            # Record shot details
-            shot_sequence.append({
-                'stroke': strokes,
-                'from_state': current_state,
-                'shot_distance': shot_distance,
-                'distance_to_hole': distance_to_hole,
-                'distance_ratio': distance_to_hole / hole_distance
-            })
-            
-            # Special case: if we're on the green and close enough, go to hole
+            # Check if ball is on green and close enough to hole
             if current_state == "Green" and distance_to_hole <= 2:
-                current_state = "Hole"
-                distance_to_hole = 0
+                # Record final shot on green (ending state should be Green)
+                shot_sequence.append({
+                    'stroke': strokes,
+                    'from_state': "Green",  # Keep as Green for visualization
+                    'shot_distance': shot_distance,
+                    'distance_to_hole': 0,
+                    'distance_ratio': 0,
+                    'lat': current_lat,
+                    'lon': current_lon,
+                    'face_to_path': face_to_path,
+                    'launch_direction': launch_direction
+                })
+                # Stop simulation (ball is holed)
+                break
+            else:
+                # Record shot details
+                shot_sequence.append({
+                    'stroke': strokes,
+                    'from_state': current_state,
+                    'shot_distance': shot_distance,
+                    'distance_to_hole': distance_to_hole,
+                    'distance_ratio': distance_to_hole / hole_distance if hole_distance > 0 else 0,
+                    'lat': current_lat,
+                    'lon': current_lon,
+                    'face_to_path': face_to_path,
+                    'launch_direction': launch_direction
+                })
         
         return strokes, shot_sequence
     
@@ -381,7 +683,24 @@ class GolfSimulator:
         return round_scores, hole_details
 
 # Initialize simulator
-simulator = GolfSimulator(shots_df, hole_distances, rough_penalty, bunker_penalty, wind_factor)
+simulator = GolfSimulator(
+    shots_df, 
+    hole_distances, 
+    rough_penalty, 
+    bunker_penalty, 
+    wind_factor,
+    greens=greens if use_geometry else None,
+    fairways=fairways if use_geometry else None,
+    bunkers=bunkers if use_geometry else None,
+    tees=tees if use_geometry else None,
+    use_geometry=use_geometry and greens is not None
+)
+
+# Display simulation mode
+if use_geometry and greens is not None:
+    st.success(f"✅ Using actual course geometry for simulation (Hole {selected_hole if selected_hole else 'All'})")
+else:
+    st.info("ℹ️ Using distance-based state thresholds (enable 'Use Actual Course Geometry' for more accuracy)")
 
 # Display shot distributions
 st.subheader("📊 Your Shot Distributions")
@@ -440,6 +759,151 @@ with col2:
 #     {"State": "Hole", "Threshold": "0%", "Description": "Ball holed"}
 # ])
 # st.dataframe(threshold_df)
+
+# Visualization function
+def visualize_single_simulation(simulator, hole_num, hole_distance):
+    """Visualize a single hole simulation on a plot similar to geoplot_hole"""
+    if not simulator.use_geometry or greens is None:
+        st.warning("Visualization requires geometry data. Please enable 'Use Actual Course Geometry'.")
+        return
+    
+    # Get hole geometry
+    hole_greens = greens[greens['hole'] == hole_num].copy()
+    hole_fairways = fairways[fairways['hole'] == hole_num].copy()
+    hole_bunkers = bunkers[bunkers['hole'] == hole_num].copy()
+    hole_tees = tees[tees['hole'] == hole_num].copy()
+    
+    if hole_tees.empty or hole_greens.empty:
+        st.warning(f"Geometry data not available for hole {hole_num}")
+        return
+    
+    # Run a single simulation
+    strokes, shot_sequence = simulator.simulate_hole(hole_distance, hole_num)
+    
+    # Get tee and green centroids
+    tee_centroid = hole_tees.geometry.unary_union.centroid
+    green_centroid = hole_greens.geometry.unary_union.centroid
+    
+    # Transform geometries (same as geoplot_hole)
+    hole_tees['geometry'] = hole_tees.translate(xoff=-tee_centroid.x, yoff=-tee_centroid.y)
+    hole_fairways['geometry'] = hole_fairways.translate(xoff=-tee_centroid.x, yoff=-tee_centroid.y)
+    hole_greens['geometry'] = hole_greens.translate(xoff=-tee_centroid.x, yoff=-tee_centroid.y)
+    
+    # Rotate so green is "up"
+    green_centroid_translated = hole_greens.geometry.unary_union.centroid
+    dx = green_centroid_translated.x
+    dy = green_centroid_translated.y
+    angle = np.degrees(np.arctan2(dx, dy))
+    
+    hole_tees['geometry'] = hole_tees.rotate(angle, origin=(0,0))
+    hole_fairways['geometry'] = hole_fairways.rotate(angle, origin=(0,0))
+    hole_greens['geometry'] = hole_greens.rotate(angle, origin=(0,0))
+    
+    # Convert to yards
+    latitude_to_yards = 69 * 1760
+    longitude_to_yards = 69 * 1760 * np.cos(np.radians(tee_centroid.y))
+    hole_tees['geometry'] = hole_tees.scale(xfact=longitude_to_yards, yfact=latitude_to_yards, origin=(0,0))
+    hole_fairways['geometry'] = hole_fairways.scale(xfact=longitude_to_yards, yfact=latitude_to_yards, origin=(0,0))
+    hole_greens['geometry'] = hole_greens.scale(xfact=longitude_to_yards, yfact=latitude_to_yards, origin=(0,0))
+    
+    # Transform shot positions
+    shot_positions = []
+    shot_positions.append({
+        'x': 0,
+        'y': 0,
+        'state': "Tee",
+        'stroke': 0,
+        'distance': 0
+    })
+    for shot in shot_sequence:
+        if shot['lat'] is not None and shot['lon'] is not None:
+            # Transform shot position
+            shot_point = Point(shot['lon'], shot['lat'])
+            shot_point = translate(shot_point, xoff=-tee_centroid.x, yoff=-tee_centroid.y)
+            shot_point = rotate(shot_point, angle, origin=(0,0))
+            shot_point = scale(shot_point, xfact=longitude_to_yards, yfact=latitude_to_yards, origin=(0,0))
+            shot_positions.append({
+                'x': shot_point.x,
+                'y': shot_point.y,
+                'state': shot['from_state'],
+                'stroke': shot['stroke'],
+                'distance': shot['shot_distance']
+            })
+    
+    # Create plot
+    fig, ax = plt.subplots(figsize=(10, 10))
+    
+    # Plot course features
+    if not hole_fairways.empty:
+        hole_fairways.plot(ax=ax, color='palegreen', edgecolor='black', alpha=0.5, label='Fairway')
+    if not hole_greens.empty:
+        hole_greens.plot(ax=ax, color='darkgreen', edgecolor='black', alpha=0.7, label='Green')
+    if not hole_tees.empty:
+        hole_tees.plot(ax=ax, color='blue', edgecolor='black', alpha=0.5, label='Tee')
+    if hole_bunkers is not None and not hole_bunkers.empty:
+        # Transform bunkers too
+        hole_bunkers_plot = hole_bunkers.copy()
+        hole_bunkers_plot['geometry'] = hole_bunkers_plot.translate(xoff=-tee_centroid.x, yoff=-tee_centroid.y)
+        hole_bunkers_plot['geometry'] = hole_bunkers_plot.rotate(angle, origin=(0,0))
+        hole_bunkers_plot['geometry'] = hole_bunkers_plot.scale(xfact=longitude_to_yards, yfact=latitude_to_yards, origin=(0,0))
+        hole_bunkers_plot.plot(ax=ax, color='yellow', edgecolor='black', alpha=0.5, label='Bunker')
+    
+    # Plot shot path
+    if shot_positions:
+        state_colors = {
+            'Tee': 'blue',
+            'Fairway': 'green',
+            'Rough': 'brown',
+            'Bunker': 'yellow',
+            'Green': 'darkgreen',
+            'Hole': 'red'
+        }
+        
+        # Plot shot positions
+        for i, pos in enumerate(shot_positions):
+            color = state_colors.get(pos['state'], 'gray')
+            ax.scatter(pos['x'], pos['y'], c=color, s=100, edgecolor='black', linewidth=2, zorder=5)
+            ax.annotate(f"{pos['stroke']}", (pos['x'], pos['y']), fontsize=10, ha='center', va='center', 
+                       color='white', weight='bold', zorder=6)
+        
+        # Plot shot path (lines connecting shots)
+        for i in range(len(shot_positions) - 1):
+            x1, y1 = shot_positions[i]['x'], shot_positions[i]['y']
+            x2, y2 = shot_positions[i+1]['x'], shot_positions[i+1]['y']
+            ax.plot([x1, x2], [y1, y2], 'k--', alpha=0.5, linewidth=2, zorder=4)
+    
+    ax.set_title(f'Hole {hole_num} Simulation - {strokes} Strokes')
+    ax.set_xlabel("Yards Left/Right of Line of Play")
+    ax.set_ylabel("Yards from Tee")
+    ax.legend()
+    ax.axis('equal')
+    ax.grid(True, alpha=0.3)
+    st.pyplot(fig)
+    
+    # Show shot details
+    st.write(f"**Shot Sequence:**")
+    shot_df = pd.DataFrame(shot_sequence)
+    if not shot_df.empty:
+        display_df = shot_df[['stroke', 'from_state', 'shot_distance', 'distance_to_hole', 
+                             'face_to_path', 'launch_direction']].copy()
+        display_df.columns = ['Stroke', 'State', 'Shot Distance (yds)', 'Distance to Hole (yds)', 
+                              'Face to Path (°)', 'Launch Direction (°)']
+        st.dataframe(display_df.round(2))
+
+# Single simulation visualization button
+if use_geometry and greens is not None:
+    st.markdown("---")
+    st.subheader("Single Simulation Visualization")
+    
+    viz_hole = st.selectbox("Select Hole to Visualize", 
+                           options=sorted(set(greens['hole'].dropna().unique()) & 
+                                         set(fairways['hole'].dropna().unique()) &
+                                         set(tees['hole'].dropna().unique())),
+                           index=0)
+    
+    if st.button("🎯 Visualize Single Simulation", type="secondary"):
+        viz_hole_distance = hole_distances[int(viz_hole) - 1] if viz_hole <= len(hole_distances) else 400
+        visualize_single_simulation(simulator, int(viz_hole), viz_hole_distance)
 
 # Run simulation
 if st.button("🎯 Run Simulation", type="primary"):
@@ -603,23 +1067,3 @@ if st.button("🎯 Run Simulation", type="primary"):
             'hole_details': all_hole_details
         }
 
-# Display course setup summary
-st.subheader("🏌️ Course Setup Summary")
-course_df = pd.DataFrame({
-    'Hole': range(1, 19),
-    'Distance (yards)': hole_distances,
-    'Par': [3 if d < 250 else 4 if d < 450 else 5 for d in hole_distances]
-})
-
-st.dataframe(course_df)
-
-total_distance = sum(hole_distances)
-course_par = sum([3 if d < 250 else 4 if d < 450 else 5 for d in hole_distances])
-
-col1, col2, col3 = st.columns(3)
-with col1:
-    st.metric("Total Distance", f"{total_distance:,} yards")
-with col2:
-    st.metric("Course Par", f"{course_par}")
-with col3:
-    st.metric("Average Hole Distance", f"{total_distance/18:.0f} yards")

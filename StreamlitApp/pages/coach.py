@@ -91,25 +91,14 @@ feature_importances, optimal_ranges = load_research_data()
 # ---- Load Golf Shot Data ----
 shots = get_user_shots(st.session_state.user_id)
 if shots:
-    # Convert shots to DataFrame - handle variable number of columns
+    # Convert shots to DataFrame
     if len(shots) > 0:
-        first_shot_columns = len(shots[0])
-        
-        if first_shot_columns == 14:  # Old format without location data
-            df = pd.DataFrame(shots, columns=[
-                'id', 'user_id', 'Shot Type', 'Carry (yards)', 'Club Speed (MPH)',
-                'Ball Speed (MPH)', 'Launch Angle (Deg)', 'Spin Rate (RPM)',
-                'Face Angle (Deg)', 'Face to Path (Deg)', 'Club Path (Deg)',
-                'Attack Angle (Deg)', 'Launch Direction (Deg)', 'timestamp'
-            ])
-        else:  # New format with location data
-            df = pd.DataFrame(shots, columns=[
-                'id', 'user_id', 'Shot Type', 'Carry (yards)', 'Club Speed (MPH)',
-                'Ball Speed (MPH)', 'Launch Angle (Deg)', 'Spin Rate (RPM)',
-                'Face Angle (Deg)', 'Face to Path (Deg)', 'Club Path (Deg)',
-                'Attack Angle (Deg)', 'Launch Direction (Deg)', 'Origin Latitude',
-                'Origin Longitude', 'Destination Latitude', 'Destination Longitude', 'timestamp'
-            ])
+        df = pd.DataFrame(shots, columns=[
+            'id', 'user_id', 'Shot Type', 'Carry (yards)', 'Club Speed (MPH)',
+            'Ball Speed (MPH)', 'Launch Angle (Deg)', 'Spin Rate (RPM)',
+            'Face Angle (Deg)', 'Face to Path (Deg)', 'Club Path (Deg)',
+            'Attack Angle (Deg)', 'Launch Direction (Deg)', 'timestamp'
+        ])
     else:
         df = pd.DataFrame()
     

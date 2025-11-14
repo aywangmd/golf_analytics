@@ -76,7 +76,7 @@ with col2:
 
 with col3:
     if st.button("📊 Player Data", use_container_width=True):
-        st.switch_page("pages/playerdata.py")
+        st.switch_page("pages/player_data.py")
 
 # Logout button
 if st.button("Logout"):

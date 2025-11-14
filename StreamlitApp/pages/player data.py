@@ -14,31 +14,14 @@ st.markdown("# Golf Shot Logger")
 # Load user's shots from database
 shots = get_user_shots(st.session_state.user_id)
 if shots:
-    # Convert shots to DataFrame - handle variable number of columns
+    # Convert shots to DataFrame
     if len(shots) > 0:
-        # Check how many columns the first shot has
-        first_shot_columns = len(shots[0])
-        
-        if first_shot_columns == 14:  # Old format without location data
-            df = pd.DataFrame(shots, columns=[
-                'id', 'user_id', 'Shot Type', 'Carry (yards)', 'Club Speed (MPH)',
-                'Ball Speed (MPH)', 'Launch Angle (Deg)', 'Spin Rate (RPM)',
-                'Face Angle (Deg)', 'Face to Path (Deg)', 'Club Path (Deg)',
-                'Attack Angle (Deg)', 'Launch Direction (Deg)', 'timestamp'
-            ])
-            # Add empty location columns
-            df['Origin Latitude'] = None
-            df['Origin Longitude'] = None
-            df['Destination Latitude'] = None
-            df['Destination Longitude'] = None
-        else:  # New format with location data
-            df = pd.DataFrame(shots, columns=[
-                'id', 'user_id', 'Shot Type', 'Carry (yards)', 'Club Speed (MPH)',
-                'Ball Speed (MPH)', 'Launch Angle (Deg)', 'Spin Rate (RPM)',
-                'Face Angle (Deg)', 'Face to Path (Deg)', 'Club Path (Deg)',
-                'Attack Angle (Deg)', 'Launch Direction (Deg)', 'Origin Latitude',
-                'Origin Longitude', 'Destination Latitude', 'Destination Longitude', 'timestamp'
-            ])
+        df = pd.DataFrame(shots, columns=[
+            'id', 'user_id', 'Shot Type', 'Carry (yards)', 'Club Speed (MPH)',
+            'Ball Speed (MPH)', 'Launch Angle (Deg)', 'Spin Rate (RPM)',
+            'Face Angle (Deg)', 'Face to Path (Deg)', 'Club Path (Deg)',
+            'Attack Angle (Deg)', 'Launch Direction (Deg)', 'timestamp'
+        ])
     else:
         df = pd.DataFrame()
     
@@ -57,11 +40,7 @@ else:
         "Face to Path (Deg)", 
         "Club Path (Deg)", 
         "Attack Angle (Deg)", 
-        "Launch Direction (Deg)",
-        "Origin Latitude",
-        "Origin Longitude",
-        "Destination Latitude",
-        "Destination Longitude"
+        "Launch Direction (Deg)"
     ])
 
 # User input fields
@@ -76,23 +55,6 @@ face_to_path = st.number_input("Face to Path (Deg):", min_value=-10.0, max_value
 club_path = st.number_input("Club Path (Deg):", min_value=-10.0, max_value=10.0, step=0.1)
 attack_angle = st.number_input("Attack Angle (Deg):", min_value=-10.0, max_value=10.0, step=0.1)
 launch_direction = st.number_input("Launch Direction (Deg):", min_value=-20.0, max_value=20.0, step=0.1)
-
-# Location fields
-st.markdown("### 📍 Shot Location (Optional)")
-col1, col2 = st.columns(2)
-
-with col1:
-    st.markdown("**Origin (Where you hit from)**")
-    origin_lat = st.number_input("Origin Latitude:", min_value=-90.0, max_value=90.0, step=0.000001, format="%.6f")
-    origin_lon = st.number_input("Origin Longitude:", min_value=-180.0, max_value=180.0, step=0.000001, format="%.6f")
-
-with col2:
-    st.markdown("**Destination (Where the ball landed)**")
-    destination_lat = st.number_input("Destination Latitude:", min_value=-90.0, max_value=90.0, step=0.000001, format="%.6f")
-    destination_lon = st.number_input("Destination Longitude:", min_value=-180.0, max_value=180.0, step=0.000001, format="%.6f")
-
-# Helper text for coordinates
-st.info("💡 **Tip**: You can get coordinates from Google Maps by right-clicking on a location and copying the coordinates.")
 
 # CSV Import Section
 st.markdown("### Import Shots from CSV")
@@ -110,12 +72,6 @@ if uploaded_file is not None:
             "Face to Path (Deg)", "Club Path (Deg)", "Attack Angle (Deg)",
             "Launch Direction (Deg)"
         ]
-        
-        # Optional location columns
-        optional_columns = [
-            "Origin Latitude", "Origin Longitude", "Destination Latitude", "Destination Longitude"
-        ]
-        
         # Check if all required columns are present
         missing_columns = [col for col in required_columns if col not in new_shots_df.columns]
         if missing_columns:
@@ -127,11 +83,6 @@ if uploaded_file is not None:
             if len(invalid_types) > 0:
                 st.error(f"Invalid shot types found: {', '.join(invalid_types)}")
             else:
-                # Add missing optional columns with None values
-                for col in optional_columns:
-                    if col not in new_shots_df.columns:
-                        new_shots_df[col] = None
-                
                 # Save each shot to database
                 for _, row in new_shots_df.iterrows():
                     save_user_shot(st.session_state.user_id, row.to_dict())
@@ -160,10 +111,6 @@ if st.button("Add Shot"):
         "Club Path (Deg)": club_path,
         "Attack Angle (Deg)": attack_angle,
         "Launch Direction (Deg)": launch_direction,
-        "Origin Latitude": origin_lat if origin_lat != 0 else None,
-        "Origin Longitude": origin_lon if origin_lon != 0 else None,
-        "Destination Latitude": destination_lat if destination_lat != 0 else None,
-        "Destination Longitude": destination_lon if destination_lon != 0 else None,
     }
 
     # Save shot to database

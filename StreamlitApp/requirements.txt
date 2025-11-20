@@ -5,10 +5,6 @@ scikit-learn
 streamlit_geolocation
 seaborn
 python-dotenv
-geopandas
-shapely
-pydeck
-
  
 # Core app dependencies
 streamlit

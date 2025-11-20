@@ -342,23 +342,22 @@ if show_geoplot:
     with st.expander("Geoplots"):
         greens = gpd.read_file("StreamlitApp/pages/data/greens.csv")
         geoplot_single(greens, "Greens")
-        greens['hole'] = [1, 2, 3, 4, 5, 6, 7, 8, 18, 10, 11, 12, 13, 6, 15, 16, 4, 18]
+        greens['hole'] = [1, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 2, 3, 5, 4, 7, 6]
         greens = greens[['hole'] + [col for col in greens.columns if col != 'hole']]
-
 
         fairways = gpd.read_file("StreamlitApp/pages/data/fairways.csv")
         geoplot_single(fairways, "Fairways")
-        fairways['hole'] = [1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]
+        fairways['hole'] = [1, 3, 2, 5, 4, 6, 8, 9, 11, 12, 13, 16, 17, 18, 18, 2]
         fairways = fairways[['hole'] + [col for col in fairways.columns if col != 'hole']]
 
         bunkers = gpd.read_file("StreamlitApp/pages/data/bunkers.csv")
         geoplot_single(bunkers, "Bunkers")
-        # bunkers['hole'] = [1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]
-        # bunkers = bunkers[['hole'] + [col for col in bunkers.columns if col != 'hole']]
+        bunkers['hole'] = [1, 1, 1, 2, 8, 8, 9, 9, 9, 10, 10, 11, 11, 12, 12, 13, 13, 13, 14, 14, 14, 15, 15, 16, 16, 16, 16, 17, 17, 17, 17, 17, 18, 18, 18, 2, 3, 3, 5, 5, 5, 5, 5, 4, 7, 6, 6, 6, 6]
+        bunkers = bunkers[['hole'] + [col for col in bunkers.columns if col != 'hole']]
 
         tees = gpd.read_file("StreamlitApp/pages/data/tees.csv")
         geoplot_single(tees, "Tees")
-        tees['hole'] = [1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29]
+        tees['hole'] = [1, 3, 3, 2, 5, 5, 4, 4, 7, 7, 6, 8, 9, 10, 11, 11, 11, 12, 13, 13, 14, 14, 15, 15, 16, 17, 18, 18]
         tees = tees[['hole'] + [col for col in tees.columns if col != 'hole']]
 
 
@@ -368,15 +367,15 @@ def geoplot_hole_latlon(hole_number):
     
     hole_greens = greens[greens['hole'] == hole_number]
     hole_fairways = fairways[fairways['hole'] == hole_number]
-    # hole_bunkers = bunkers[bunkers['hole'] == hole_number]
+    hole_bunkers = bunkers[bunkers['hole'] == hole_number]
     hole_tees = tees[tees['hole'] == hole_number]
     
     if not hole_fairways.empty:
         hole_fairways.plot(ax=ax, color='palegreen', edgecolor='black', alpha=0.5, label='Fairways')
     if not hole_greens.empty:
         hole_greens.plot(ax=ax, color='darkgreen', edgecolor='black', alpha=0.7, label='Greens')
-    # if not hole_bunkers.empty:
-    #     hole_bunkers.plot(ax=ax, color='yellow', edgecolor='black', alpha=0.5, label='Bunkers')
+    if not hole_bunkers.empty:
+        hole_bunkers.plot(ax=ax, color='yellow', edgecolor='black', alpha=0.5, label='Bunkers')
     if not hole_tees.empty:
         hole_tees.plot(ax=ax, color='blue', edgecolor='black', alpha=0.5, label='Tees')
     
@@ -393,6 +392,7 @@ def geoplot_hole(hole_number):
     
     hole_greens = greens[greens['hole'] == hole_number].copy()
     hole_fairways = fairways[fairways['hole'] == hole_number].copy()
+    hole_bunkers = bunkers[bunkers['hole'] == hole_number].copy()
     hole_tees = tees[tees['hole'] == hole_number].copy()
     
     # --- Find the tee location ---
@@ -401,6 +401,7 @@ def geoplot_hole(hole_number):
     # --- Translate so tee is at (0,0) ---
     hole_tees['geometry'] = hole_tees.translate(xoff=-tee_centroid.x, yoff=-tee_centroid.y)
     hole_fairways['geometry'] = hole_fairways.translate(xoff=-tee_centroid.x, yoff=-tee_centroid.y)
+    hole_bunkers['geometry'] = hole_bunkers.translate(xoff=-tee_centroid.x, yoff=-tee_centroid.y)
     hole_greens['geometry'] = hole_greens.translate(xoff=-tee_centroid.x, yoff=-tee_centroid.y)
     
     # --- Compute rotation angle so hole aligns vertically ---
@@ -411,6 +412,7 @@ def geoplot_hole(hole_number):
     
     hole_tees['geometry'] = hole_tees.rotate(angle, origin=(0,0))
     hole_fairways['geometry'] = hole_fairways.rotate(angle, origin=(0,0))
+    hole_bunkers['geometry'] = hole_bunkers.rotate(angle, origin=(0,0))
     hole_greens['geometry'] = hole_greens.rotate(angle, origin=(0,0))
     
     # --- Convert coordinates to yards (assuming CRS is meters) ---
@@ -419,6 +421,7 @@ def geoplot_hole(hole_number):
     longitude_to_yards = 69 * 1760 * np.cos(np.radians(tee_centroid.y))  # approx yards per degree longitude at given latitude
     hole_tees['geometry'] = hole_tees.scale(xfact=longitude_to_yards, yfact=latitude_to_yards, origin=(0,0))
     hole_fairways['geometry'] = hole_fairways.scale(xfact=longitude_to_yards, yfact=latitude_to_yards, origin=(0,0))
+    hole_bunkers['geometry'] = hole_bunkers.scale(xfact=longitude_to_yards, yfact=latitude_to_yards, origin=(0,0))
     hole_greens['geometry'] = hole_greens.scale(xfact=longitude_to_yards, yfact=latitude_to_yards, origin=(0,0))
     
     # --- Plot everything ---
@@ -426,6 +429,8 @@ def geoplot_hole(hole_number):
         hole_fairways.plot(ax=ax, color='palegreen', edgecolor='black', alpha=0.5, label='Fairways')
     if not hole_greens.empty:
         hole_greens.plot(ax=ax, color='darkgreen', edgecolor='black', alpha=0.7, label='Greens')
+    if not hole_bunkers.empty:
+        hole_bunkers.plot(ax=ax, color='yellow', edgecolor='black', alpha=0.5, label='Bunkers')
     if not hole_tees.empty:
         hole_tees.plot(ax=ax, color='blue', edgecolor='black', alpha=0.5, label='Tees')
     

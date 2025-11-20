@@ -32,16 +32,16 @@ def load_hole_geometry():
     """Load hole geometry data (greens, fairways, bunkers, tees)"""
     try:
         greens = gpd.read_file("StreamlitApp/pages/data/greens.csv")
-        greens['hole'] = [1, 2, 3, 4, 5, 6, 7, 8, 18, 10, 11, 12, 13, 6, 15, 16, 4, 18]
+        greens['hole'] = [1, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 2, 3, 5, 4, 7, 6]
         
         fairways = gpd.read_file("StreamlitApp/pages/data/fairways.csv")
-        fairways['hole'] = [1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]
+        fairways['hole'] = [1, 3, 2, 5, 4, 6, 8, 9, 11, 12, 13, 16, 17, 18, 18, 2]
         
         bunkers = gpd.read_file("StreamlitApp/pages/data/bunkers.csv")
-        bunkers['hole'] = [1, 1, 1, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 2, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 11, 12, 13, 14, 15, 16, 17, 18, 12, 3, 4, 5, 6, 7]
+        bunkers['hole'] = [1, 1, 1, 2, 8, 8, 9, 9, 9, 10, 10, 11, 11, 12, 12, 13, 13, 13, 14, 14, 14, 15, 15, 16, 16, 16, 16, 17, 17, 17, 17, 17, 18, 18, 18, 2, 3, 3, 5, 5, 5, 5, 5, 4, 7, 6, 6, 6, 6]
         
         tees = gpd.read_file("StreamlitApp/pages/data/tees.csv")
-        tees['hole'] = [1, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29]
+        tees['hole'] = [1, 3, 3, 2, 5, 5, 4, 4, 7, 7, 6, 8, 9, 10, 11, 11, 11, 12, 13, 13, 14, 14, 15, 15, 16, 17, 18, 18]
         
         return greens, fairways, bunkers, tees
     except Exception as e:
@@ -138,10 +138,11 @@ st.sidebar.header("🏌️ Course Setup")
 # Hole selection for geometry-based simulation
 use_geometry = st.sidebar.checkbox("Use Actual Course Geometry", value=True)
 
+st.sidebar.subheader("Hole Selection")
+selected_hole = st.sidebar.number_input("Select Hole Number", min_value=1, max_value=18, value=1)
+hole_num = selected_hole
+
 if use_geometry and greens is not None:
-    st.sidebar.subheader("Hole Selection")
-    selected_hole = st.sidebar.number_input("Select Hole Number", min_value=1, max_value=18, value=1)
-    
     # Get available holes from geometry data
     available_holes = sorted(set(greens['hole'].dropna().unique()) & 
                             set(fairways['hole'].dropna().unique()) &
@@ -895,15 +896,9 @@ if use_geometry and greens is not None:
     st.markdown("---")
     st.subheader("Single Simulation Visualization")
     
-    viz_hole = st.selectbox("Select Hole to Visualize", 
-                           options=sorted(set(greens['hole'].dropna().unique()) & 
-                                         set(fairways['hole'].dropna().unique()) &
-                                         set(tees['hole'].dropna().unique())),
-                           index=0)
-    
     if st.button("🎯 Visualize Single Simulation", type="secondary"):
-        viz_hole_distance = hole_distances[int(viz_hole) - 1] if viz_hole <= len(hole_distances) else 400
-        visualize_single_simulation(simulator, int(viz_hole), viz_hole_distance)
+        viz_hole_distance = hole_distances[int(hole_num) - 1] if hole_num <= len(hole_distances) else 400
+        visualize_single_simulation(simulator, int(hole_num), viz_hole_distance)
 
 # Run simulation
 if st.button("🎯 Run Simulation", type="primary"):

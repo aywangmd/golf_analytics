@@ -304,16 +304,16 @@ st.pydeck_chart(
             "zoom": 18,
             "pitch": 60,
         },
-        layers=layers,
+        # layers=layers,
     )
 )
 
-# Display simulation results
-st.markdown("### Simulation Results")
-for i, simulation in enumerate(all_simulations):
-    # st.markdown(f"#### Simulation {i+1}")
-    st.dataframe(simulation[['shot_type', 'distance_to_hole']], hide_index=True)
-    st.write(f"Total Shots: {len(simulation)}")
+# # Display simulation results
+# st.markdown("### Simulation Results")
+# for i, simulation in enumerate(all_simulations):
+#     # st.markdown(f"#### Simulation {i+1}")
+#     st.dataframe(simulation[['shot_type', 'distance_to_hole']], hide_index=True)
+#     st.write(f"Total Shots: {len(simulation)}")
 
 def geoplot_single(data, name):
     if 'geometry' not in data.columns:
@@ -336,29 +336,25 @@ def geoplot_single(data, name):
     plt.ylabel("Latitude")
     st.pyplot(fig)
 
-# Hide these in a toggle
-show_geoplot = st.checkbox("Show Geoplots", value=True)
-if show_geoplot:
-    with st.expander("Geoplots"):
-        greens = gpd.read_file("StreamlitApp/pages/data/greens.csv")
-        geoplot_single(greens, "Greens")
-        greens['hole'] = [1, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 2, 3, 5, 4, 7, 6]
-        greens = greens[['hole'] + [col for col in greens.columns if col != 'hole']]
+greens = gpd.read_file("StreamlitApp/pages/data/greens.csv")
+# geoplot_single(greens, "Greens")
+greens['hole'] = [1, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 2, 3, 5, 4, 7, 6]
+greens = greens[['hole'] + [col for col in greens.columns if col != 'hole']]
 
-        fairways = gpd.read_file("StreamlitApp/pages/data/fairways.csv")
-        geoplot_single(fairways, "Fairways")
-        fairways['hole'] = [1, 3, 2, 5, 4, 6, 8, 9, 11, 12, 13, 16, 17, 18, 18, 2]
-        fairways = fairways[['hole'] + [col for col in fairways.columns if col != 'hole']]
+fairways = gpd.read_file("StreamlitApp/pages/data/fairways.csv")
+# geoplot_single(fairways, "Fairways")
+fairways['hole'] = [1, 3, 2, 5, 4, 6, 8, 9, 11, 12, 13, 16, 17, 18, 18, 2]
+fairways = fairways[['hole'] + [col for col in fairways.columns if col != 'hole']]
 
-        bunkers = gpd.read_file("StreamlitApp/pages/data/bunkers.csv")
-        geoplot_single(bunkers, "Bunkers")
-        bunkers['hole'] = [1, 1, 1, 2, 8, 8, 9, 9, 9, 10, 10, 11, 11, 12, 12, 13, 13, 13, 14, 14, 14, 15, 15, 16, 16, 16, 16, 17, 17, 17, 17, 17, 18, 18, 18, 2, 3, 3, 5, 5, 5, 5, 5, 4, 7, 6, 6, 6, 6]
-        bunkers = bunkers[['hole'] + [col for col in bunkers.columns if col != 'hole']]
+bunkers = gpd.read_file("StreamlitApp/pages/data/bunkers.csv")
+# geoplot_single(bunkers, "Bunkers")
+bunkers['hole'] = [1, 1, 1, 2, 8, 8, 9, 9, 9, 10, 10, 11, 11, 12, 12, 13, 13, 13, 14, 14, 14, 15, 15, 16, 16, 16, 16, 17, 17, 17, 17, 17, 18, 18, 18, 2, 3, 3, 5, 5, 5, 5, 5, 4, 7, 6, 6, 6, 6]
+bunkers = bunkers[['hole'] + [col for col in bunkers.columns if col != 'hole']]
 
-        tees = gpd.read_file("StreamlitApp/pages/data/tees.csv")
-        geoplot_single(tees, "Tees")
-        tees['hole'] = [1, 3, 3, 2, 5, 5, 4, 4, 7, 7, 6, 8, 9, 10, 11, 11, 11, 12, 13, 13, 14, 14, 15, 15, 16, 17, 18, 18]
-        tees = tees[['hole'] + [col for col in tees.columns if col != 'hole']]
+tees = gpd.read_file("StreamlitApp/pages/data/tees.csv")
+# geoplot_single(tees, "Tees")
+tees['hole'] = [1, 3, 3, 2, 5, 5, 4, 4, 7, 7, 6, 8, 9, 10, 11, 11, 11, 12, 13, 13, 14, 14, 15, 15, 16, 17, 18, 18]
+tees = tees[['hole'] + [col for col in tees.columns if col != 'hole']]
 
 
 # plot all the shapes of a hole together

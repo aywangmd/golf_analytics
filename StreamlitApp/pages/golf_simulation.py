@@ -721,19 +721,6 @@ with col2:
     ax.grid(True, alpha=0.3)
     st.pyplot(fig)
 
-# Display Markov Chain State Thresholds
-# st.subheader("🎯 Course State Thresholds")
-# st.write("**Distance thresholds for each course state (as % of hole distance):**")
-# threshold_df = pd.DataFrame([
-#     {"State": "Tee", "Threshold": "100%", "Description": "Starting position"},
-#     {"State": "Fairway", "Threshold": "70%", "Description": "Good lie, full shots"},
-#     {"State": "Rough", "Threshold": "30%", "Description": "Difficult lie, reduced distance"},
-#     {"State": "Bunker", "Threshold": "20%", "Description": "Sand penalty, accuracy issues"},
-#     {"State": "Green", "Threshold": "5%", "Description": "Putting surface"},
-#     {"State": "Hole", "Threshold": "0%", "Description": "Ball holed"}
-# ])
-# st.dataframe(threshold_df)
-
 # Visualization function
 def visualize_single_simulation(simulator, hole_num, hole_distance):
     """Visualize a single hole simulation on a plot similar to geoplot_hole"""
@@ -1093,7 +1080,7 @@ def run_statistical_simulation(simulator, hole_distances, n_simulations=10000):
 
 # Single simulation visualization button
 st.markdown("---")
-st.subheader("Simulations on Course")
+st.subheader("Simulations")
 
 st.text("Hole Selection:")
 selected_hole = st.number_input("Select Hole Number", min_value=1, max_value=18, value=1)

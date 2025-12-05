@@ -4,7 +4,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 from scipy import stats
-from sklearn.mixture import GaussianMixture
 import sqlite3
 from auth import get_user_shots, init_db
 import geopandas as gpd
@@ -24,7 +23,7 @@ if 'user_id' not in st.session_state:
     st.stop()
 
 st.title("🏌️ Golf Round Simulation")
-st.markdown("Simulate 10,000 rounds using your personal shot distributions and actual course geometry")
+st.markdown("Simulate rounds using your personal shot distributions and actual course geometry")
 
 # Load hole geometry data
 @st.cache_data
@@ -135,22 +134,14 @@ st.write(shot_type_counts)
 # Course setup sidebar
 st.sidebar.header("🏌️ Course Setup")
 
-# Hole selection for geometry-based simulation
-use_geometry = st.sidebar.checkbox("Use Actual Course Geometry", value=True)
+# Always use actual course geometry when available
+use_geometry = greens is not None
 
-st.sidebar.subheader("Hole Selection")
-selected_hole = st.sidebar.number_input("Select Hole Number", min_value=1, max_value=18, value=1)
-hole_num = selected_hole
-
-if use_geometry and greens is not None:
+if greens is not None:
     # Get available holes from geometry data
     available_holes = sorted(set(greens['hole'].dropna().unique()) & 
                             set(fairways['hole'].dropna().unique()) &
                             set(tees['hole'].dropna().unique()))
-    
-    if selected_hole not in available_holes:
-        st.sidebar.warning(f"Hole {selected_hole} geometry not available. Using hole {available_holes[0] if available_holes else 1}.")
-        selected_hole = available_holes[0] if available_holes else 1
     
     # Calculate hole distances from geometry
     def get_hole_distance(hole_num):
@@ -179,21 +170,9 @@ if use_geometry and greens is not None:
     
     # Get distances for all 18 holes
     hole_distances = [get_hole_distance(i+1) for i in range(18)]
-    
 else:
-    # Manual distance input
-    st.sidebar.subheader("Course Distances (yards)")
-    hole_distances = []
-    for i in range(18):
-        distance = st.sidebar.number_input(
-            f"Hole {i+1} Distance", 
-            min_value=100, 
-            max_value=600, 
-            value=400 if i < 4 else 350 if i < 8 else 300 if i < 12 else 250 if i < 16 else 200,
-            key=f"hole_{i+1}"
-        )
-        hole_distances.append(distance)
-    selected_hole = None
+    st.error("❌ Course geometry data not available. Please ensure geometry files are loaded.")
+    st.stop()
 
 # Course difficulty settings
 st.sidebar.subheader("Course Difficulty")
@@ -203,7 +182,7 @@ wind_factor = st.sidebar.slider("Wind Factor", 0.0, 2.0, 1.0, 0.1)
 
 # Simulation parameters
 st.sidebar.subheader("Simulation Parameters")
-n_simulations = st.sidebar.slider("Number of Rounds", 1000, 50000, 10000, 1000)
+n_simulations = st.sidebar.slider("Number of Rounds", min_value=100, max_value=10000, value=500, step=100)
 show_details = st.sidebar.checkbox("Show Detailed Analysis", value=False)
 
 class GolfSimulator:
@@ -690,18 +669,12 @@ simulator = GolfSimulator(
     rough_penalty, 
     bunker_penalty, 
     wind_factor,
-    greens=greens if use_geometry else None,
-    fairways=fairways if use_geometry else None,
-    bunkers=bunkers if use_geometry else None,
-    tees=tees if use_geometry else None,
-    use_geometry=use_geometry and greens is not None
+    greens=greens,
+    fairways=fairways,
+    bunkers=bunkers,
+    tees=tees,
+    use_geometry=True
 )
-
-# Display simulation mode
-if use_geometry and greens is not None:
-    st.success(f"✅ Using actual course geometry for simulation (Hole {selected_hole if selected_hole else 'All'})")
-else:
-    st.info("ℹ️ Using distance-based state thresholds (enable 'Use Actual Course Geometry' for more accuracy)")
 
 # Display shot distributions
 st.subheader("📊 Your Shot Distributions")
@@ -765,8 +738,8 @@ with col2:
 def visualize_single_simulation(simulator, hole_num, hole_distance):
     """Visualize a single hole simulation on a plot similar to geoplot_hole"""
     if not simulator.use_geometry or greens is None:
-        st.warning("Visualization requires geometry data. Please enable 'Use Actual Course Geometry'.")
-        return
+        st.warning("Visualization requires geometry data. Please ensure geometry files are loaded.")
+        return None
     
     # Get hole geometry
     hole_greens = greens[greens['hole'] == hole_num].copy()
@@ -776,7 +749,7 @@ def visualize_single_simulation(simulator, hole_num, hole_distance):
     
     if hole_tees.empty or hole_greens.empty:
         st.warning(f"Geometry data not available for hole {hole_num}")
-        return
+        return None
     
     # Run a single simulation
     strokes, shot_sequence = simulator.simulate_hole(hole_distance, hole_num)
@@ -890,175 +863,248 @@ def visualize_single_simulation(simulator, hole_num, hole_distance):
         display_df.columns = ['Stroke', 'State', 'Shot Distance (yds)', 'Distance to Hole (yds)', 
                               'Face to Path (°)', 'Launch Direction (°)']
         st.dataframe(display_df.round(2))
+    
+    return strokes
+
+def visualize_full_round(simulator, hole_distances):
+    """Visualize a full 18-hole round simulation using visualize_single_simulation for each hole"""
+    if not simulator.use_geometry or greens is None:
+        st.warning("Visualization requires geometry data. Please ensure geometry files are loaded.")
+        return
+    
+    total_strokes = 0
+    hole_results = []
+    
+    # First, simulate all holes to get strokes for summary
+    for hole_num in range(1, 19):
+        hole_distance = hole_distances[hole_num - 1] if hole_num <= len(hole_distances) else 400
+        
+        # Check if geometry is available
+        hole_greens = greens[greens['hole'] == hole_num].copy()
+        hole_tees = tees[tees['hole'] == hole_num].copy()
+        
+        if not hole_tees.empty and not hole_greens.empty:
+            strokes, _ = simulator.simulate_hole(hole_distance, hole_num)
+            total_strokes += strokes
+            hole_results.append({
+                'Hole': hole_num,
+                'Strokes': strokes,
+                'Distance (yds)': hole_distance
+            })
+    
+    # Display summary first
+    st.markdown("---")
+    st.subheader("📊 Round Summary")
+    
+    # Total strokes
+    st.metric("Total Strokes", f"{total_strokes}")
+    
+    # Hole-by-hole breakdown
+    if hole_results:
+        st.write("**Hole-by-Hole Breakdown:**")
+        summary_df = pd.DataFrame(hole_results)
+        st.dataframe(summary_df)
+    
+    # Display each hole's visualization in an expander
+    st.markdown("---")
+    st.subheader("🏌️ Hole Visualizations")
+    
+    for hole_num in range(1, 19):
+        hole_distance = hole_distances[hole_num - 1] if hole_num <= len(hole_distances) else 400
+        
+        # Check if geometry is available
+        hole_greens = greens[greens['hole'] == hole_num].copy()
+        hole_tees = tees[tees['hole'] == hole_num].copy()
+        
+        if not hole_tees.empty and not hole_greens.empty:
+            # Get strokes for this hole from summary
+            hole_strokes = next((r['Strokes'] for r in hole_results if r['Hole'] == hole_num), None)
+            
+            with st.expander(f"🏌️ Hole {hole_num} - {hole_strokes} Strokes" if hole_strokes else f"🏌️ Hole {hole_num}"):
+                # Use visualize_single_simulation for each hole
+                visualize_single_simulation(simulator, hole_num, hole_distance)
+
+def run_statistical_simulation(simulator, hole_distances, n_simulations=10000):
+    """Run simulations without visualizations and show detailed statistics"""
+    all_round_scores = []
+    all_hole_details = []
+    
+    # Create progress bar and status text
+    progress_bar = st.progress(0)
+    status_text = st.empty()
+    
+    # Run simulations
+    for i in range(n_simulations):
+        round_scores, hole_details = simulator.simulate_round()
+        all_round_scores.append(sum(round_scores))
+        all_hole_details.extend(hole_details)
+        
+        # Update progress bar
+        progress = (i + 1) / n_simulations
+        progress_bar.progress(progress)
+        status_text.text(f"Simulated {i + 1:,} / {n_simulations:,} rounds ({progress*100:.1f}%)")
+    
+    # Clear progress bar and status text when done
+    progress_bar.empty()
+    status_text.empty()
+    
+    # Convert to arrays for analysis
+    round_totals = np.array(all_round_scores)
+    
+    # Calculate statistics
+    mean_score = np.mean(round_totals)
+    std_score = np.std(round_totals)
+    median_score = np.median(round_totals)
+    min_score = np.min(round_totals)
+    max_score = np.max(round_totals)
+    
+    # Percentiles
+    p25 = np.percentile(round_totals, 25)
+    p75 = np.percentile(round_totals, 75)
+    p90 = np.percentile(round_totals, 90)
+    p95 = np.percentile(round_totals, 95)
+    
+    # Display results
+    st.subheader("📈 Overall Round Statistics")
+    
+    # Key statistics
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        st.metric("Average Score", f"{mean_score:.1f}")
+    with col2:
+        st.metric("Best Round", f"{min_score}")
+    with col3:
+        st.metric("Worst Round", f"{max_score}")
+    with col4:
+        st.metric("Standard Deviation", f"{std_score:.1f}")
+    
+    # Detailed statistics
+    st.subheader("📊 Detailed Score Statistics")
+    
+    stats_data = {
+        'Metric': ['Mean', 'Median', 'Standard Deviation', 'Min', 'Max', 
+                  '25th Percentile', '75th Percentile', '90th Percentile', '95th Percentile'],
+        'Value': [f"{mean_score:.2f}", f"{median_score:.2f}", f"{std_score:.2f}", 
+                 f"{min_score}", f"{max_score}", f"{p25:.2f}", f"{p75:.2f}", 
+                 f"{p90:.2f}", f"{p95:.2f}"]
+    }
+    
+    st.dataframe(pd.DataFrame(stats_data))
+    
+    # Histogram visualization
+    st.subheader("📊 Score Distribution")
+    
+    fig, ax = plt.subplots(figsize=(12, 6))
+    ax.hist(round_totals, bins=50, alpha=0.7, color='skyblue', edgecolor='black')
+    ax.axvline(mean_score, color='red', linestyle='--', linewidth=2, label=f'Mean: {mean_score:.1f}')
+    ax.axvline(median_score, color='green', linestyle='--', linewidth=2, label=f'Median: {median_score:.1f}')
+    ax.set_xlabel('Total Score')
+    ax.set_ylabel('Frequency')
+    ax.set_title(f'Distribution of {n_simulations:,} Simulated Rounds')
+    ax.legend()
+    ax.grid(True, alpha=0.3)
+    st.pyplot(fig)
+    
+    # Hole-by-hole analysis
+    st.subheader("🏌️ Hole-by-Hole Stroke Statistics")
+    
+    hole_df = pd.DataFrame(all_hole_details)
+    hole_stats = hole_df.groupby('hole').agg({
+        'strokes': ['mean', 'std', 'min', 'max', 'median'],
+        'distance': 'first',
+        'par': 'first'
+    }).round(2)
+    
+    hole_stats.columns = ['Avg Strokes', 'Std Dev', 'Min Strokes', 'Max Strokes', 'Median Strokes', 'Distance', 'Par']
+    hole_stats['Avg vs Par'] = hole_stats['Avg Strokes'] - hole_stats['Par']
+    hole_stats = hole_stats[['Distance', 'Par', 'Avg Strokes', 'Median Strokes', 'Std Dev', 'Min Strokes', 'Max Strokes', 'Avg vs Par']]
+    
+    st.write("**Statistics for each hole across all simulations:**")
+    st.dataframe(hole_stats)
+    
+    # Hole difficulty visualization
+    fig, ax = plt.subplots(figsize=(14, 6))
+    
+    holes = hole_stats.index
+    avg_strokes = hole_stats['Avg Strokes']
+    par = hole_stats['Par']
+    
+    x = np.arange(len(holes))
+    width = 0.35
+    
+    ax.bar(x - width/2, avg_strokes, width, alpha=0.7, label='Average Strokes', color='skyblue')
+    ax.bar(x + width/2, par, width, alpha=0.7, label='Par', color='lightcoral')
+    ax.set_xlabel('Hole Number')
+    ax.set_ylabel('Strokes')
+    ax.set_title('Average Strokes vs Par by Hole')
+    ax.set_xticks(x)
+    ax.set_xticklabels(holes)
+    ax.legend()
+    ax.grid(True, alpha=0.3, axis='y')
+    
+    st.pyplot(fig)
+    
+    # Contribution of each hole to total score
+    st.subheader("📊 Hole Contribution to Total Score")
+    
+    # Calculate contribution percentage
+    total_avg_strokes = hole_stats['Avg Strokes'].sum()
+    hole_stats['Contribution %'] = (hole_stats['Avg Strokes'] / total_avg_strokes * 100).round(2)
+    
+    contribution_df = hole_stats[['Avg Strokes', 'Contribution %']].copy()
+    contribution_df.columns = ['Average Strokes', 'Contribution to Total Score (%)']
+    
+    st.write("**How much each hole contributes to the average total score:**")
+    st.dataframe(contribution_df)
+    
+    # Visualization of hole contributions
+    fig, ax = plt.subplots(figsize=(14, 6))
+    ax.bar(holes, hole_stats['Contribution %'], alpha=0.7, color='steelblue', edgecolor='black')
+    ax.set_xlabel('Hole Number')
+    ax.set_ylabel('Contribution (%)')
+    ax.set_title('Percentage Contribution of Each Hole to Total Score')
+    ax.set_xticks(holes)
+    ax.grid(True, alpha=0.3, axis='y')
+    
+    st.pyplot(fig)
+    
+    # Standard deviation by hole
+    st.subheader("📊 Stroke Variability by Hole")
+    
+    fig, ax = plt.subplots(figsize=(14, 6))
+    ax.bar(holes, hole_stats['Std Dev'], alpha=0.7, color='coral', edgecolor='black')
+    ax.set_xlabel('Hole Number')
+    ax.set_ylabel('Standard Deviation (Strokes)')
+    ax.set_title('Stroke Variability (Standard Deviation) by Hole')
+    ax.set_xticks(holes)
+    ax.grid(True, alpha=0.3, axis='y')
+    
+    st.pyplot(fig)
+    
+    # Store results in session state
+    st.session_state.simulation_results = {
+        'round_totals': round_totals,
+        'mean_score': mean_score,
+        'std_score': std_score,
+        'hole_details': all_hole_details,
+        'hole_stats': hole_stats
+    }
 
 # Single simulation visualization button
-if use_geometry and greens is not None:
-    st.markdown("---")
-    st.subheader("Single Simulation Visualization")
-    
-    if st.button("🎯 Visualize Single Simulation", type="secondary"):
-        viz_hole_distance = hole_distances[int(hole_num) - 1] if hole_num <= len(hole_distances) else 400
-        visualize_single_simulation(simulator, int(hole_num), viz_hole_distance)
+st.markdown("---")
+st.subheader("Simulations on Course")
 
-# Run simulation
-if st.button("🎯 Run Simulation", type="primary"):
-    with st.spinner("Running 10,000 round simulations..."):
-        all_round_scores = []
-        all_hole_details = []
-        
-        # Run simulations
-        for i in range(n_simulations):
-            round_scores, hole_details = simulator.simulate_round()
-            all_round_scores.append(sum(round_scores))
-            all_hole_details.extend(hole_details)
-        
-        # Convert to arrays for analysis
-        round_totals = np.array(all_round_scores)
-        
-        # Calculate statistics
-        mean_score = np.mean(round_totals)
-        std_score = np.std(round_totals)
-        median_score = np.median(round_totals)
-        min_score = np.min(round_totals)
-        max_score = np.max(round_totals)
-        
-        # Percentiles
-        p25 = np.percentile(round_totals, 25)
-        p75 = np.percentile(round_totals, 75)
-        p90 = np.percentile(round_totals, 90)
-        p95 = np.percentile(round_totals, 95)
-        
-        # Display results
-        st.subheader("📈 Simulation Results")
-        
-        # Key statistics
-        col1, col2, col3, col4 = st.columns(4)
-        
-        with col1:
-            st.metric("Average Score", f"{mean_score:.1f}")
-        with col2:
-            st.metric("Best Round", f"{min_score}")
-        with col3:
-            st.metric("Worst Round", f"{max_score}")
-        with col4:
-            st.metric("Standard Deviation", f"{std_score:.1f}")
-        
-        # Detailed statistics
-        st.subheader("📊 Detailed Statistics")
-        
-        stats_data = {
-            'Metric': ['Mean', 'Median', 'Standard Deviation', 'Min', 'Max', 
-                      '25th Percentile', '75th Percentile', '90th Percentile', '95th Percentile'],
-            'Value': [f"{mean_score:.2f}", f"{median_score:.2f}", f"{std_score:.2f}", 
-                     f"{min_score}", f"{max_score}", f"{p25:.2f}", f"{p75:.2f}", 
-                     f"{p90:.2f}", f"{p95:.2f}"]
-        }
-        
-        st.dataframe(pd.DataFrame(stats_data))
-        
-        # Histogram visualization
-        st.subheader("📊 Score Distribution")
-        
-        # Histogram
-        plt.xlim(0, 150)
-        plt.hist(round_totals, bins=10, alpha=0.7, color='skyblue', edgecolor='black')
-        plt.axvline(mean_score, color='red', linestyle='--', linewidth=2, label=f'Mean: {mean_score:.1f}')
-        plt.axvline(median_score, color='green', linestyle='--', linewidth=2, label=f'Median: {median_score:.1f}')
-        plt.xlabel('Total Score')
-        plt.ylabel('Frequency')
-        plt.title(f'Distribution of {n_simulations:,} Simulated Rounds')
-        plt.legend()
-        plt.grid(True, alpha=0.3)
-        st.pyplot(plt)
-        
-        # Score ranges
-        st.subheader("🎯 Score Range Analysis")
-        
-        score_ranges = [
-            (60, 70, "Excellent"),
-            (70, 80, "Good"),
-            (80, 90, "Average"),
-            (90, 100, "Below Average"),
-            (100, 200, "Poor")
-        ]
-        
-        range_data = []
-        for min_score_range, max_score_range, label in score_ranges:
-            count = np.sum((round_totals >= min_score_range) & (round_totals < max_score_range))
-            percentage = (count / len(round_totals)) * 100
-            range_data.append({
-                'Score Range': f"{min_score_range}-{max_score_range}",
-                'Category': label,
-                'Count': count,
-                'Percentage': f"{percentage:.1f}%"
-            })
-        
-        st.dataframe(pd.DataFrame(range_data))
-        
-        # Hole-by-hole analysis
-        if show_details:
-            st.subheader("🏌️ Hole-by-Hole Analysis")
-            
-            hole_df = pd.DataFrame(all_hole_details)
-            hole_stats = hole_df.groupby('hole').agg({
-                'strokes': ['mean', 'std', 'min', 'max'],
-                'distance': 'first',
-                'par': 'first'
-            }).round(2)
-            
-            hole_stats.columns = ['Avg Strokes', 'Std Dev', 'Min Strokes', 'Max Strokes', 'Distance', 'Par']
-            hole_stats['Avg vs Par'] = hole_stats['Avg Strokes'] - hole_stats['Par']
-            
-            st.dataframe(hole_stats)
-            
-            # Hole difficulty visualization
-            fig, ax = plt.subplots(figsize=(12, 6))
-            
-            holes = hole_stats.index
-            avg_strokes = hole_stats['Avg Strokes']
-            par = hole_stats['Par']
-            
-            ax.bar(holes, avg_strokes, alpha=0.7, label='Average Strokes')
-            ax.plot(holes, par, 'r--', linewidth=2, label='Par')
-            ax.set_xlabel('Hole Number')
-            ax.set_ylabel('Strokes')
-            ax.set_title('Hole Difficulty Analysis')
-            ax.legend()
-            ax.grid(True, alpha=0.3)
-            
-            st.pyplot(fig)
-            
-            # Shot sequence analysis
-            st.subheader("📊 Shot Sequence Analysis")
-            
-            # Analyze state transitions
-            state_transitions = {}
-            for hole_detail in all_hole_details:
-                for shot in hole_detail['shot_sequence']:
-                    from_state = shot['from_state']
-                    if from_state not in state_transitions:
-                        state_transitions[from_state] = []
-                    state_transitions[from_state].append(shot['shot_distance'])
-            
-            # Display state transition statistics
-            transition_stats = []
-            for state, distances in state_transitions.items():
-                if distances:
-                    transition_stats.append({
-                        'From State': state,
-                        'Avg Shot Distance': f"{np.mean(distances):.1f} yds",
-                        'Std Dev': f"{np.std(distances):.1f} yds",
-                        'Count': len(distances)
-                    })
-            
-            if transition_stats:
-                st.dataframe(pd.DataFrame(transition_stats))
-        
-        # Store results in session state
-        st.session_state.simulation_results = {
-            'round_totals': round_totals,
-            'mean_score': mean_score,
-            'std_score': std_score,
-            'hole_details': all_hole_details
-        }
+st.text("Hole Selection:")
+selected_hole = st.number_input("Select Hole Number", min_value=1, max_value=18, value=1)
+hole_num = selected_hole
+if st.button("🎯 Visualize Single Simulation", type="secondary"):
+    viz_hole_distance = hole_distances[int(hole_num) - 1] if hole_num <= len(hole_distances) else 400
+    visualize_single_simulation(simulator, int(hole_num), viz_hole_distance)
+
+if st.button("🏌️ Simulate Full Round (18 Holes)", type="secondary"):
+    visualize_full_round(simulator, hole_distances)
+
+if st.button(f"📊 Run {n_simulations} Simulations", type="primary"):
+    run_statistical_simulation(simulator, hole_distances, n_simulations)
 

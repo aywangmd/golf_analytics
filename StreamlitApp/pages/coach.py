@@ -11,67 +11,49 @@ import os
 from dotenv import load_dotenv
 from auth import get_user_shots
 
-load_dotenv()  # Load environment variables from .env
+load_dotenv()
 
-# Check if user is logged in
 if 'user_id' not in st.session_state or not st.session_state.user_id:
-    st.warning("Please login to access this page.")
+    st.warning('Please login to access this page.')
     st.stop()
 
-# ---- Streamlit Page Config ----
-st.set_page_config(page_title="Virtual Golf Coach")
-st.title("Virtual Golf Coach")
+st.set_page_config(page_title='Virtual Golf Coach')
+st.title('Virtual Golf Coach')
+deepseek_api_key = os.getenv('DEEPSEEK_API_KEY')
 
-# ---- API Key Input ----
-deepseek_api_key = os.getenv("DEEPSEEK_API_KEY")
-
-# ---- Load Research Data ----
 def load_research_data():
-    """Calculate research data directly from the CSV file."""
     try:
-        # Read and preprocess data
         df = pd.read_csv('GGXY.csv')
         df.replace('-', np.nan, inplace=True)
         df.dropna(inplace=True)
         
-        # Prepare features and target
         X = df.drop(['Club', 'Carry'], axis=1).astype(float)
         y = df['Carry'].astype(float)
         
-        # Train Random Forest for feature importance
+        # RF from research
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=500)
         rf_model = RandomForestRegressor(n_estimators=100, random_state=42)
         rf_model.fit(X_train, y_train)
         
-        # Calculate feature importances
-        feature_importances = pd.DataFrame({
-            'Feature': X.columns,
-            'Importance': rf_model.feature_importances_
-        }).sort_values(by='Importance', ascending=False)
+        feature_importances = pd.DataFrame({'Feature': X.columns, 'Importance': rf_model.feature_importances_}).sort_values(by='Importance', ascending=False)
         
-        # Calculate optimal ranges using SVR
+        # SVR from research
         optimal_ranges = {}
         for feature in X.columns:
             X_feature = X[feature].to_numpy().reshape(-1, 1)
-            
-            # Scale features
             scaler_X = StandardScaler()
             scaler_y = StandardScaler()
-            
             X_train_scaled = scaler_X.fit_transform(X_feature)
             y_train_scaled = scaler_y.fit_transform(y.values.reshape(-1, 1)).ravel()
             
-            # Train SVR
             svr = SVR(kernel='rbf')
             svr.fit(X_train_scaled, y_train_scaled)
             
-            # Find optimal range
             X_range = np.linspace(X_feature.min(), X_feature.max(), 50000).reshape(-1, 1)
             X_range_scaled = scaler_X.transform(X_range)
             y_range_pred_scaled = svr.predict(X_range_scaled)
             y_range_pred = scaler_y.inverse_transform(y_range_pred_scaled.reshape(-1, 1)).ravel()
             
-            # Identify optimal ranges
             max_y = np.max(y_range_pred)
             threshold = 0.98 * max_y
             optimal_x_values = X_range[y_range_pred >= threshold].flatten()
@@ -82,16 +64,13 @@ def load_research_data():
         return feature_importances, optimal_ranges
         
     except Exception as e:
-        st.warning(f"Error calculating research data: {str(e)}")
+        st.warning(f'Error calculating research data: {str(e)}')
         return None, None
 
-# Load research data
 feature_importances, optimal_ranges = load_research_data()
 
-# ---- Load Golf Shot Data ----
 shots = get_user_shots(st.session_state.user_id)
 if shots:
-    # Convert shots to DataFrame
     if len(shots) > 0:
         df = pd.DataFrame(shots, columns=[
             'id', 'user_id', 'Shot Type', 'Carry (yards)', 'Club Speed (MPH)',
@@ -103,21 +82,18 @@ if shots:
         df = pd.DataFrame()
     
     df = df.drop(['id', 'user_id', 'timestamp'], axis=1)
-    st.success("Loaded user data from database! 🟢")
+    st.success('Loaded user data from database! 🟢')
 else:
     df = pd.DataFrame()
-    st.warning("No shot data found! Please log some shots first.")
+    st.warning('No shot data found! Please log some shots first.')
 
-# ---- Process Shot Data ----
 if not df.empty:
-    # Store all shot data
     all_shots = df.to_dict('records')
     latest_shot = all_shots[-1]
     
-    st.write("### Your Shot History")
+    st.write('### Your Shot History')
     st.dataframe(df)
     
-    # Calculate shot statistics
     shot_stats = {}
     for metric in optimal_ranges.keys():
         if metric in df.columns:
@@ -125,22 +101,18 @@ if not df.empty:
             values = values.dropna()
             
             if not values.empty:
-                # Calculate weighted average
                 weights = np.exp(np.linspace(0, 1, len(values)))
                 weights = weights / weights.sum()
                 weighted_mean = np.average(values, weights=weights)
-                
-                # Calculate weighted standard deviation
                 weighted_std = np.sqrt(np.average((values - weighted_mean)**2, weights=weights))
                 
-                # Determine recent trend
                 recent_value = values.iloc[-1]
                 if recent_value > weighted_mean + weighted_std:
-                    recent_trend = "above average"
+                    recent_trend = 'above average'
                 elif recent_value < weighted_mean - weighted_std:
-                    recent_trend = "below average"
+                    recent_trend = 'below average'
                 else:
-                    recent_trend = "within average range"
+                    recent_trend = 'within average range'
                 
                 shot_stats[metric] = {
                     'mean': weighted_mean,
@@ -151,7 +123,6 @@ if not df.empty:
                     'recent_trend': recent_trend
                 }
     
-    # Generate feedback based on weighted statistics
     feedback = []
     for metric, (low, high) in optimal_ranges.items():
         if metric in df.columns:
@@ -159,25 +130,21 @@ if not df.empty:
             values = values.dropna()
             
             if not values.empty:
-                # Calculate weighted average
                 weights = np.exp(np.linspace(0, 1, len(values)))
                 weights = weights / weights.sum()
                 weighted_mean = np.average(values, weights=weights)
                 
-                # Check if weighted mean is outside optimal range
                 if weighted_mean < low:
-                    feedback.append(f"- Your recent {metric} is **too low** ({weighted_mean:.1f}). Consider increasing it.")
+                    feedback.append(f'- Your recent {metric} is **too low** ({weighted_mean:.1f}). Consider increasing it.')
                 elif weighted_mean > high:
-                    feedback.append(f"- Your recent {metric} is **too high** ({weighted_mean:.1f}). Consider adjusting.")
+                    feedback.append(f'- Your recent {metric} is **too high** ({weighted_mean:.1f}). Consider adjusting.')
                 
-                # Check consistency (weighted standard deviation)
                 weighted_std = np.sqrt(np.average((values - weighted_mean)**2, weights=weights))
-                if weighted_std > (high - low) * 0.2:  # If standard deviation is more than 20% of the optimal range
-                    feedback.append(f"- Your {metric} is **inconsistent** (std: {weighted_std:.1f}). Work on consistency.")
+                if weighted_std > (high - low) * 0.2:  # big std dev
+                    feedback.append(f'- Your {metric} is **inconsistent** (std: {weighted_std:.1f}). Work on consistency.')
     
-    # Add research-based insights with weighted averages
     if feature_importances is not None:
-        feedback.append("\n--- Research-Based Insights ---")
+        feedback.append('\n--- Research-Based Insights ---')
         for _, row in feature_importances.iterrows():
             feature = row['Feature']
             if feature in df.columns:
@@ -185,7 +152,6 @@ if not df.empty:
                 values = values.dropna()
                 
                 if not values.empty:
-                    # Calculate weighted average
                     weights = np.exp(np.linspace(0, 1, len(values)))
                     weights = weights / weights.sum()
                     weighted_mean = np.average(values, weights=weights)
@@ -193,46 +159,43 @@ if not df.empty:
                     if feature in optimal_ranges:
                         research_low, research_high = optimal_ranges[feature]
                         if weighted_mean < research_low:
-                            feedback.append(f"- Research shows your recent {feature} is below optimal range for maximizing carry distance.")
+                            feedback.append(f'- Research shows your recent {feature} is below optimal range for maximizing carry distance.')
                         elif weighted_mean > research_high:
-                            feedback.append(f"- Research shows your recent {feature} is above optimal range for maximizing carry distance.")
+                            feedback.append(f'- Research shows your recent {feature} is above optimal range for maximizing carry distance.')
     
-    feedback_text = "\n".join(feedback) if feedback else "Your shot data is within optimal ranges and shows good consistency."
+    feedback_text = "\n".join(feedback) if feedback else 'Your shot data is within optimal ranges and shows good consistency.'
 
 else:
     all_shots = None
     latest_shot = None
     shot_stats = {}
-    feedback_text = "No shot data available."
+    feedback_text = 'No shot data available.'
 
-# ---- Function to Generate AI Coaching Response ----
 def generate_response(input_text):
     if not deepseek_api_key:
-        st.warning("Please enter a valid DeepSeek API key!", icon="⚠")
+        st.warning('Please enter a valid DeepSeek API key!', icon='⚠')
         return
 
     try:
-        # Initialize DeepSeek Model
         model = ChatDeepSeek(
-            model="deepseek-chat",
+            model='deepseek-chat',
             temperature=0.7,
             api_key=deepseek_api_key,
         )
 
-        # Test the API key with a simple request
-        test_response = model.invoke([("system", "Test"), ("human", "Hello")])
+        test_response = model.invoke([('system', 'Test'), ('human', 'Hello')])
         if not test_response:
-            st.error("Invalid API key. Please check your DeepSeek API key and try again.")
+            st.error('Invalid API key. Please check your DeepSeek API key and try again.')
             return
 
     except Exception as e:
-        if "Authentication" in str(e) or "401" in str(e):
-            st.error("Invalid API key. Please check your DeepSeek API key and try again.")
+        if 'Authentication' in str(e) or '401' in str(e):
+            st.error('Invalid API key. Please check your DeepSeek API key and try again.')
         else:
-            st.error(f"Error connecting to DeepSeek API: {str(e)}")
+            st.error(f'Error connecting to DeepSeek API: {str(e)}')
         return
 
-    # Golf knowledge for structured responses
+
     golf_knowledge = """
     - Ball Speed, Launch Angle, and Spin Rate are key factors for optimizing carry distance.
     - Face to Path and Attack Angle should be within ±2 degrees to reduce shot curvature.
@@ -240,7 +203,6 @@ def generate_response(input_text):
     - Club Path should remain within ±5 degrees for straighter shots.
     """
 
-    # Add research findings to golf knowledge
     if feature_importances is not None:
         golf_knowledge += "\n--- Research Findings ---\n"
         golf_knowledge += "Feature importance analysis shows the following order of impact on carry distance:\n"

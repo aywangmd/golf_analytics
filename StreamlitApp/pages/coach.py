@@ -204,28 +204,26 @@ def generate_response(input_text):
     """
 
     if feature_importances is not None:
-        golf_knowledge += "\n--- Research Findings ---\n"
-        golf_knowledge += "Feature importance analysis shows the following order of impact on carry distance:\n"
+        golf_knowledge += '\n--- Research Findings ---\n'
+        golf_knowledge +='"Feature importance analysis shows the following order of impact on carry distance:\n'
         for _, row in feature_importances.iterrows():
-            golf_knowledge += f"- {row['Feature']}: {row['Importance']:.2f}\n"
+            golf_knowledge += f'- {row['Feature']}: {row['Importance']:.2f}\n'
         
-        golf_knowledge += "\nOptimal ranges based on data analysis:\n"
+        golf_knowledge += '\nOptimal ranges based on data analysis:\n'
         for feature, (low, high) in optimal_ranges.items():
-            golf_knowledge += f"- {feature}: {low:.1f} to {high:.1f}\n"
+            golf_knowledge += f'- {feature}: {low:.1f} to {high:.1f}\n'
 
-    # Add user's shot statistics to the prompt
-    user_stats = ""
+    user_stats = ''
     if all_shots is not None:
         user_stats = "\n--- User's Shot Statistics ---\n"
         for metric, stats in shot_stats.items():
-            user_stats += f"{metric}:\n"
-            user_stats += f"- Average: {stats['mean']:.1f}\n"
-            user_stats += f"- Standard Deviation: {stats['std']:.1f}\n"
-            user_stats += f"- Range: {stats['min']:.1f} to {stats['max']:.1f}\n"
-            user_stats += f"- Number of Shots: {stats['count']}\n"
-            user_stats += f"- Recent Trend: {stats['recent_trend']}\n\n"
+            user_stats += f'{metric}:\n'
+            user_stats += f'- Average: {stats['mean']:.1f}\n'
+            user_stats += f'- Standard Deviation: {stats['std']:.1f}\n'
+            user_stats += f'- Range: {stats['min']:.1f} to {stats['max']:.1f}\n'
+            user_stats += f'- Number of Shots: {stats['count']}\n'
+            user_stats += f'- Recent Trend: {stats['recent_trend']}\n\n'
 
-    # Example prompts for few-shot learning
     example_prompts = """
     --- Example 1: Driver Analysis ---
     User: "How can I improve my driver distance?"
@@ -254,7 +252,6 @@ def generate_response(input_text):
     Start with face-to-path control, as this will have the biggest immediate impact on your game."
     """
 
-    # Construct AI Prompt
     coaching_prompt = f"""
     You are a professional golf coach specializing in shot analysis.
     
@@ -281,48 +278,32 @@ def generate_response(input_text):
     5. Use a similar structure to the example responses
     """
 
-    # Generate Response
-    response = model.invoke([("system", "You are a golf coach with deep understanding of shot data and research findings."),
-                             ("human", coaching_prompt)])
+    response = model.invoke([('system', 'You are a golf coach with deep understanding of shot data and research findings.'),
+                             ('human', coaching_prompt)])
     
-    # Clean up the response to show only the coach's message
     if response:
-        # Convert response to string and remove common artifacts
         clean_response = str(response)
-        
-        # Remove content= prefix if present
-        if clean_response.startswith("content="):
+        if clean_response.startswith('content='):
             clean_response = clean_response[8:]
         
-        # Remove any quotes at the start and end
         clean_response = clean_response.strip('"\'')
+        clean_response = clean_response.replace("Coach's Response:", '').strip()
         
-        # Remove "Coach's Response:" prefix if present
-        clean_response = clean_response.replace("Coach's Response:", "").strip()
-        
-        # Remove any additional metadata or notes at the end
         if "*(Note:" in clean_response:
-            clean_response = clean_response.split("*(Note:")[0].strip()
-        
-        # Remove any additional_kwargs or response_metadata
+            clean_response = clean_response.split('*(Note:')[0].strip()
         if "additional_kwargs" in clean_response:
-            clean_response = clean_response.split("additional_kwargs")[0].strip()
-        
-        # Remove any trailing quotes or whitespace
+            clean_response = clean_response.split('additional_kwargs')[0].strip()
+
         clean_response = clean_response.strip('"\' \n')
-        
-        # Convert \n to actual newlines
         clean_response = clean_response.replace('\\n', '\n')
         
-        # Display the markdown content directly
         st.markdown(clean_response)
 
-# ---- User Input Form ----
-with st.form("coaching_form"):
-    user_question = st.text_area("Ask your Virtual Coach:", "How can I improve my accuracy?")
-    submitted = st.form_submit_button("Get Advice")
+with st.form('coaching_form'):
+    user_question = st.text_area('Ask your Virtual Coach:', 'How can I improve my accuracy?')
+    submitted = st.form_submit_button('Get Advice')
 
     if submitted and latest_shot:
         generate_response(user_question)
     elif submitted:
-        st.warning("No shot data available for analysis.")
+        st.warning('No shot data available for analysis.')

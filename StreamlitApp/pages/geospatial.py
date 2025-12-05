@@ -11,37 +11,29 @@ import matplotlib.pyplot as plt
 from shapely import wkt
 from shapely.affinity import translate, rotate
 
-st.set_page_config(page_title="Golf Course Simulation", page_icon="⛳")
-st.markdown("# Golf Course Simulation")
+st.set_page_config(page_title='Golf Course Simulation', page_icon='⛳')
+st.markdown('# Golf Course Simulation')
 
-# Check if user is logged in
 if 'user_id' not in st.session_state or not st.session_state.user_id:
-    st.warning("Please login to access this page.")
+    st.warning('Please login to access this page.')
     st.stop()
 
-# # Course selection
-# course = st.selectbox(
-#     "Select a Golf Course:",
-#     ("Clifton Park", "Elkridge", "Pine Ridge"),
-#     index=0,
-# )
+# # course selection....will uncomment if we make QGIS for the other courses
+# course = st.selectbox('Select a Golf Course:', ('Clifton Park', 'Elkridge', 'Pine Ridge'),index=0,)
 
-# Hole selection
-hole_number = st.number_input("Select Hole Number:", min_value=1, max_value=18, step=1)
-
-# Simulation parameters
+hole_number = st.number_input('Select Hole Number:', min_value=1, max_value=18, step=1)
 num_simulations = 1
-show_hazards = st.checkbox("Show Hazards", value=True)
+show_hazards = st.checkbox('Show Hazards', value=True)
 
-# Course coordinates and hole layouts
+# course coordinates DO NOT TOUCH!!!
 course_data = {
-    "Clifton Park": {
-        "center": (39.32318903778765, -76.58700524418536),
-        "holes": {
+    'Clifton Park': {
+        'center': (39.32318903778765, -76.58700524418536),
+        'holes': {
             1: {
-                "tee": (39.32592099564656, -76.5843713165854),
-                "green": (39.32237917682804, -76.58753409610676),
-                "fairway": [
+                'tee': (39.32592099564656, -76.5843713165854),
+                'green': (39.32237917682804, -76.58753409610676),
+                'fairway': [
                     (39.3202193906142, -76.57967450138088),
                     (39.3212193906142, -76.58067450138088),
                     (39.3222193906142, -76.58567450138088),
@@ -50,10 +42,10 @@ course_data = {
                     (39.3212193906142, -76.58067450138088),
                     (39.3202193906142, -76.57967450138088)
                 ],
-                "hazards": [
+                'hazards': [
                     {
-                        "type": "bunker",
-                        "coordinates": [
+                        'type': 'bunker',
+                        'coordinates': [
                             (39.32218903778765, -76.58600524418536),
                             (39.32228903778765, -76.58600524418536),
                             (39.32228903778765, -76.58610524418536),
@@ -61,8 +53,8 @@ course_data = {
                         ]
                     },
                     {
-                        "type": "water",
-                        "coordinates": [
+                        'type': 'water',
+                        'coordinates': [
                             (39.32118903778765, -76.58300524418536),
                             (39.32138903778765, -76.58300524418536),
                             (39.32138903778765, -76.58320524418536),
@@ -75,13 +67,12 @@ course_data = {
     }
 }
 
-# Get user's historical shots
+
 user_shots = get_user_shots(st.session_state.user_id)
 if not user_shots:
-    st.warning("No shot data available. Please log some shots first.")
+    st.warning('No shot data available. Please log some shots first.')
     st.stop()
 
-# Convert shots to DataFrame
 if len(user_shots) > 0:
     shots_df = pd.DataFrame(user_shots, columns=[
         'id', 'user_id', 'Shot Type', 'Carry (yards)', 'Club Speed (MPH)',
@@ -92,7 +83,6 @@ if len(user_shots) > 0:
 else:
     shots_df = pd.DataFrame()
 
-# Convert numeric columns
 numeric_columns = [
     'Carry (yards)', 'Club Speed (MPH)', 'Ball Speed (MPH)',
     'Launch Angle (Deg)', 'Spin Rate (RPM)', 'Face Angle (Deg)',
@@ -103,33 +93,27 @@ numeric_columns = [
 for col in numeric_columns:
     shots_df[col] = pd.to_numeric(shots_df[col], errors='coerce')
 
-# Prepare data for prediction
 le_shot = LabelEncoder()
-shots_df["shot_type_encoded"] = le_shot.fit_transform(shots_df["Shot Type"])
-
-# Use all numeric columns for training
+shots_df["shot_type_encoded"] = le_shot.fit_transform(shots_df['Shot Type'])
 X = shots_df[numeric_columns]
 y = shots_df["shot_type_encoded"]
 
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-# Train the model
 model = RandomForestClassifier(n_estimators=100, random_state=42)
 model.fit(X_train, y_train)
 
 def predict_next_shot(distance, lat, lon, shot_number):
-    # Force shot type based on distance and shot sequence
-    if shot_number == 1:  # First shot must be a drive
-        return "Drive"
-    elif distance > 50:  # Mid-range
-        return "Iron Shot" if distance > 100 else "Approach"
-    elif distance > 20:  # Close to green
-        return "Chip"
-    else:  # On or near green
-        return "Putt"
+    if shot_number == 1:  # assume first will always be a drive
+        return 'Drive'
+    elif distance > 50:  
+        return 'Iron Shot' if distance > 100 else 'Approach'
+    elif distance > 20:  
+        return 'Chip' # change to chip/pitch?
+    else:  
+        return 'Putt'
 
 def calculate_shot_endpoint(start_lat, start_lon, distance, angle):
-    # Convert distance from yards to degrees (approximate)
     distance_deg = distance * 0.00001
     end_lat = start_lat + (distance_deg * np.sin(np.radians(angle)))
     end_lon = start_lon + (distance_deg * np.cos(np.radians(angle)))
@@ -140,48 +124,36 @@ def simulate_round(hole_data):
     current_lat, current_lon = hole_data["tee"]
     green_lat, green_lon = hole_data["green"]
     
-    # Track what shot number we're on
     shot_number = 1
     
     while True:
-        # Calculate distance to hole
-        distance = np.sqrt(
-            (current_lat - green_lat)**2 + 
-            (current_lon - green_lon)**2
-        ) * 111000  # Convert to meters
-        distance_yards = distance * 1.09361  # Convert to yards
+        distance = np.sqrt((current_lat - green_lat)**2 + (current_lon - green_lon)**2) * 111000  # meters
+        distance_yards = distance * 1.09361 # yards
         
-        if distance_yards < 2:  # Hole reached (within 2 yards)
+        if distance_yards < 2:  # 2 yds tolerance for holing out
             break
             
-        # Get shot type based on distance and shot sequence
         shot_type = predict_next_shot(distance_yards, current_lat, current_lon, shot_number)
-        
-        # Get average carry distance for this specific shot type
         shot_type_stats = shots_df[shots_df['Shot Type'] == shot_type]['Carry (yards)'].mean()
         carry_distance = float(shot_type_stats)
         
-        # Adjust carry distance based on shot type
-        if shot_type == "Putt":
-            carry_distance = min(distance_yards, 20)  # Putts shouldn't go past the hole
-        elif shot_type == "Chip":
+        if shot_type == 'Putt':
+            carry_distance = min(distance_yards, 20)  # assume putts don't go past the hole (lol)
+        elif shot_type == 'Chip':
             carry_distance = min(distance_yards, 50)
         
-        # Calculate shot endpoint
         angle = np.arctan2(green_lat - current_lat, green_lon - current_lon)
-        next_lat, next_lon = calculate_shot_endpoint(
-            current_lat, current_lon, carry_distance, np.degrees(angle)
-        )
+        next_lat, next_lon = calculate_shot_endpoint(current_lat, current_lon, carry_distance, np.degrees(angle))
         
         shots.append({
-            "lat": current_lat,
-            "lon": current_lon,
-            "lat2": next_lat,
-            "lon2": next_lon,
-            "shot_type": shot_type,
-            "shot_number": shot_number,
-            "distance_to_hole": round(distance_yards, 1),
-            "carry": round(carry_distance, 1)
+            'lat': current_lat,
+            'lon': current_lon,
+            'lat': next_lat,
+            'lon2': next_lon,
+            'shot_type': shot_type,
+            'shot_number': shot_number,
+            'distance_to_hole': round(distance_yards, 1),
+            'carry': round(carry_distance, 1)
         })
         
         current_lat, current_lon = next_lat, next_lon
@@ -189,131 +161,119 @@ def simulate_round(hole_data):
     
     return pd.DataFrame(shots)
 
-# Get hole data (TEMPORARILY hole 1 at clifton)
-hole_data = course_data["Clifton Park"]["holes"][1]
+# CAN CHANGE; CLIFTON HOLE 1 RN
+hole_data = course_data['Clifton Park']['holes'][1]
 
-# Generate simulations
 all_simulations = []
 for _ in range(num_simulations):
     simulation = simulate_round(hole_data)
     all_simulations.append(simulation)
 
-# Create layers for visualization
+# VISUALIZATION BELOW
 layers = [
-    # Fairway layer
+    # fairway
     pdk.Layer(
-        "PolygonLayer",
+        'PolygonLayer',
         data=[{
-            "coordinates": hole_data["fairway"],
-            "color": [152, 251, 152, 120]
+            'coordinates': hole_data['fairway'],
+            'color': [152, 251, 152, 120]
         }],
-        get_polygon="coordinates",
-        get_fill_color="color",
+        get_polygon='coordinates',
+        get_fill_color='color',
         get_line_color=[0, 0, 0],
         line_width_min_pixels=2,
     ),
-    # Green layer
+
+    # green
     pdk.Layer(
-        "PolygonLayer",
+        'PolygonLayer',
         data=[{
-            "coordinates": [
-                (hole_data["green"][0] - 0.00005, hole_data["green"][1] - 0.00005),
-                (hole_data["green"][0] + 0.00005, hole_data["green"][1] - 0.00005),
-                (hole_data["green"][0] + 0.00005, hole_data["green"][1] + 0.00005),
-                (hole_data["green"][0] - 0.00005, hole_data["green"][1] + 0.00005)
+            'coordinates': [
+                (hole_data['green'][0] - 0.00005, hole_data['green'][1] - 0.00005),
+                (hole_data['green'][0] + 0.00005, hole_data['green'][1] - 0.00005),
+                (hole_data['green'][0] + 0.00005, hole_data['green'][1] + 0.00005),
+                (hole_data['green'][0] - 0.00005, hole_data['green'][1] + 0.00005)
             ],
-            "color": [0, 100, 0, 120]
+            'color': [0, 100, 0, 120]
         }],
-        get_polygon="coordinates",
-        get_fill_color="color",
+        get_polygon='coordinates"',
+        get_fill_color='color',
         get_line_color=[0, 0, 0],
         line_width_min_pixels=2,
     )
 ]
 
-# Add hazard layers if enabled
+# hazards
 if show_hazards:
-    for hazard in hole_data["hazards"]:
+    for hazard in hole_data['hazards']:
         layers.append(
             pdk.Layer(
-                "PolygonLayer",
+                'PolygonLayer',
                 data=[{
-                    "coordinates": hazard["coordinates"],
-                    "color": [255, 255, 0, 120] if hazard["type"] == "bunker" else [0, 0, 255, 100]
+                    'coordinates': hazard['coordinates'],
+                    'color': [255, 255, 0, 120] if hazard['type'] == 'bunker' else [0, 0, 255, 100]
                 }],
-                get_polygon="coordinates",
-                get_fill_color="color",
+                get_polygon='coordinates',
+                get_fill_color='color',
                 get_line_color=[0, 0, 0],
                 line_width_min_pixels=2,
             )
         )
 
-# Add shot layers for each simulation
-# Define colors for each shot type
 shot_colors = {
-    "Drive": [255, 0, 0, 160],      # Red
-    "Iron Shot": [255, 165, 0, 160],  # Orange
-    "Approach": [255, 255, 0, 160],   # Yellow
-    "Chip": [0, 255, 0, 160],        # Green
-    "Putt": [0, 0, 255, 160]         # Blue
+    "Drive": [255, 0, 0, 160],      #red
+    "Iron Shot": [255, 165, 0, 160],  # orange
+    "Approach": [255, 255, 0, 160],   # yellow
+    "Chip": [0, 255, 0, 160],        # green
+    "Putt": [0, 0, 255, 160]         # blue
 }
 
 for i, simulation in enumerate(all_simulations):
-    # Add color column to the simulation dataframe
     simulation['color'] = simulation['shot_type'].map(shot_colors)
     
     layers.extend([
         pdk.Layer(
-            "ArcLayer",
+            'ArcLayer',
             data=simulation,
-            get_source_position=["lon", "lat"],
-            get_target_position=["lon2", "lat2"],
-            get_source_color="color",
-            get_target_color="color",
+            get_source_position=['lon', 'lat'],
+            get_target_position=['lon2', 'lat2'],
+            get_source_color='color',
+            get_target_color='color',
             auto_highlight=True,
             width_scale=0.0001,
-            get_width="distance / 50",
+            get_width='distance / 50',
             width_min_pixels=2,
             width_max_pixels=5,
         ),
         pdk.Layer(
-            "ScatterplotLayer",
+            'ScatterplotLayer',
             data=simulation,
-            get_position=["lon2", "lat2"],
-            get_color="color",
+            get_position=['lon2', 'lat2'],
+            get_color='color',
             get_radius=5,
         ),
         pdk.Layer(
-            "TextLayer",
+            'TextLayer',
             data=simulation,
-            get_position=["lon2", "lat2"],
-            get_text="shot_type",
-            get_color=[255, 255, 255, 200],  # White text for better visibility
+            get_position=['lon2', 'lat2'],
+            get_text='shot_type',
+            get_color=[255, 255, 255, 200],  
             get_size=12,
-            get_alignment_baseline="'bottom'",
+            get_alignment_baseline='bottom',
         )
     ])
 
-# Display the map
 st.pydeck_chart(
     pdk.Deck(
-        map_style="mapbox://styles/mapbox/satellite-streets-v11",
+        map_style='mapbox://styles/mapbox/satellite-streets-v11',
         initial_view_state={
-            "latitude": hole_data["tee"][0],
-            "longitude": hole_data["tee"][1],
-            "zoom": 18,
-            "pitch": 60,
+            'latitude': hole_data["tee"][0],
+            'longitude': hole_data["tee"][1],
+            'zoom': 18,
+            'pitch': 60,
         },
-        # layers=layers,
     )
 )
-
-# # Display simulation results
-# st.markdown("### Simulation Results")
-# for i, simulation in enumerate(all_simulations):
-#     # st.markdown(f"#### Simulation {i+1}")
-#     st.dataframe(simulation[['shot_type', 'distance_to_hole']], hide_index=True)
-#     st.write(f"Total Shots: {len(simulation)}")
 
 def geoplot_single(data, name):
     if 'geometry' not in data.columns:
@@ -321,43 +281,39 @@ def geoplot_single(data, name):
     
     gdf = gpd.GeoDataFrame(data, geometry='geometry', crs="EPSG:4326")
 
-    # Plot
     fig, ax = plt.subplots(figsize=(8, 8))
     gdf.plot(ax=ax, color='green', edgecolor='black', alpha=0.5)
 
-    # Add labels
     for idx, row in gdf.iterrows():
         centroid = row.geometry.centroid
         ax.text(centroid.x, centroid.y, str(idx), fontsize=9, ha='center', color='black')
 
-    # plot the data
     ax.set_title(name)
-    plt.xlabel("Longitude")
-    plt.ylabel("Latitude")
+    plt.xlabel('Longitude')
+    plt.ylabel('Latitude')
     st.pyplot(fig)
 
-greens = gpd.read_file("StreamlitApp/pages/data/greens.csv")
-# geoplot_single(greens, "Greens")
+greens = gpd.read_file('StreamlitApp/pages/data/greens.csv')
+# geoplot_single(greens, 'Greens')
 greens['hole'] = [1, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 2, 3, 5, 4, 7, 6]
 greens = greens[['hole'] + [col for col in greens.columns if col != 'hole']]
 
-fairways = gpd.read_file("StreamlitApp/pages/data/fairways.csv")
-# geoplot_single(fairways, "Fairways")
+fairways = gpd.read_file('StreamlitApp/pages/data/fairways.csv')
+# geoplot_single(fairways, 'Fairways')
 fairways['hole'] = [1, 3, 2, 5, 4, 6, 8, 9, 11, 12, 13, 16, 17, 18, 18, 2]
 fairways = fairways[['hole'] + [col for col in fairways.columns if col != 'hole']]
 
-bunkers = gpd.read_file("StreamlitApp/pages/data/bunkers.csv")
-# geoplot_single(bunkers, "Bunkers")
+bunkers = gpd.read_file('StreamlitApp/pages/data/bunkers.csv')
+# geoplot_single(bunkers, 'Bunkers')
 bunkers['hole'] = [1, 1, 1, 2, 8, 8, 9, 9, 9, 10, 10, 11, 11, 12, 12, 13, 13, 13, 14, 14, 14, 15, 15, 16, 16, 16, 16, 17, 17, 17, 17, 17, 18, 18, 18, 2, 3, 3, 5, 5, 5, 5, 5, 4, 7, 6, 6, 6, 6]
 bunkers = bunkers[['hole'] + [col for col in bunkers.columns if col != 'hole']]
 
 tees = gpd.read_file("StreamlitApp/pages/data/tees.csv")
-# geoplot_single(tees, "Tees")
+# geoplot_single(tees, 'Tees')
 tees['hole'] = [1, 3, 3, 2, 5, 5, 4, 4, 7, 7, 6, 8, 9, 10, 11, 11, 11, 12, 13, 13, 14, 14, 15, 15, 16, 17, 18, 18]
 tees = tees[['hole'] + [col for col in tees.columns if col != 'hole']]
 
-
-# plot all the shapes of a hole together
+# plot hole all tgt
 def geoplot_hole_latlon(hole_number):
     fig, ax = plt.subplots(figsize=(8, 8))
     
@@ -391,28 +347,25 @@ def geoplot_hole(hole_number):
     hole_bunkers = bunkers[bunkers['hole'] == hole_number].copy()
     hole_tees = tees[tees['hole'] == hole_number].copy()
     
-    # --- Find the tee location ---
     tee_centroid = hole_tees.geometry.unary_union.centroid
     
-    # --- Translate so tee is at (0,0) ---
+    # center
     hole_tees['geometry'] = hole_tees.translate(xoff=-tee_centroid.x, yoff=-tee_centroid.y)
     hole_fairways['geometry'] = hole_fairways.translate(xoff=-tee_centroid.x, yoff=-tee_centroid.y)
     hole_bunkers['geometry'] = hole_bunkers.translate(xoff=-tee_centroid.x, yoff=-tee_centroid.y)
     hole_greens['geometry'] = hole_greens.translate(xoff=-tee_centroid.x, yoff=-tee_centroid.y)
     
-    # --- Compute rotation angle so hole aligns vertically ---
+    # rotate
     green_centroid = hole_greens.geometry.unary_union.centroid
     dx = green_centroid.x
     dy = green_centroid.y
-    angle = np.degrees(np.arctan2(dx, dy))  # rotate so green is "up"
+    angle = np.degrees(np.arctan2(dx, dy))  # green is "up"
     
     hole_tees['geometry'] = hole_tees.rotate(angle, origin=(0,0))
     hole_fairways['geometry'] = hole_fairways.rotate(angle, origin=(0,0))
     hole_bunkers['geometry'] = hole_bunkers.rotate(angle, origin=(0,0))
     hole_greens['geometry'] = hole_greens.rotate(angle, origin=(0,0))
     
-    # --- Convert coordinates to yards (assuming CRS is meters) ---
-    # meters_to_yards = 1.09361
     latitude_to_yards = 69 * 1760  # approx yards per degree latitude
     longitude_to_yards = 69 * 1760 * np.cos(np.radians(tee_centroid.y))  # approx yards per degree longitude at given latitude
     hole_tees['geometry'] = hole_tees.scale(xfact=longitude_to_yards, yfact=latitude_to_yards, origin=(0,0))
@@ -420,7 +373,6 @@ def geoplot_hole(hole_number):
     hole_bunkers['geometry'] = hole_bunkers.scale(xfact=longitude_to_yards, yfact=latitude_to_yards, origin=(0,0))
     hole_greens['geometry'] = hole_greens.scale(xfact=longitude_to_yards, yfact=latitude_to_yards, origin=(0,0))
     
-    # --- Plot everything ---
     if not hole_fairways.empty:
         hole_fairways.plot(ax=ax, color='palegreen', edgecolor='black', alpha=0.5, label='Fairways')
     if not hole_greens.empty:

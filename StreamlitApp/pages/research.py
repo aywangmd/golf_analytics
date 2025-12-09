@@ -14,12 +14,12 @@ import seaborn as sns
 from auth import get_user_shots
 
 if 'user_id' not in st.session_state or not st.session_state.user_id:
-    st.warning("Please login to access this page.")
+    st.warning('Please login to access this page.')
     st.stop()
 
 user_shots = get_user_shots(st.session_state.user_id)
 if not user_shots:
-    st.warning("No shot data available. Please log some shots first.")
+    st.warning('No shot data available. Please log some shots first.')
     st.stop()
 
 user_df = pd.DataFrame(user_shots, columns=[
@@ -44,23 +44,23 @@ df = pd.read_csv('GGXY.csv') # can change this file but i think this is the best
 df.replace('-', np.nan, inplace=True)
 df.dropna(inplace=True)
 
-st.sidebar.markdown("### User Shot Selection")
-show_user_shots = st.sidebar.checkbox("Show User Shots", value=True)
+st.sidebar.markdown('### User Shot Selection')
+show_user_shots = st.sidebar.checkbox('Show User Shots', value=True)
 
 if show_user_shots:
     user_df['timestamp'] = pd.to_datetime(user_df['timestamp'])
     user_df['shot_id'] = user_df.apply(
-        lambda row: f"{row['Shot Type']} - {row['timestamp'].strftime('%Y-%m-%d %H:%M')} - {row['Carry (yards)']:.0f}yds", axis=1)
+        lambda row: f'{row['Shot Type']} - {row['timestamp'].strftime('%Y-%m-%d %H:%M')} - {row['Carry (yards)']:.0f}yds', axis=1)
     
-    st.sidebar.markdown("#### Select Shots to Display")
+    st.sidebar.markdown('#### Select Shots to Display')
     
     for shot_type in user_df['Shot Type'].unique():
-        st.sidebar.markdown(f"**{shot_type}**")
+        st.sidebar.markdown(f'**{shot_type}**')
         type_shots = user_df[user_df['Shot Type'] == shot_type]
-        selected_shots = st.sidebar.multiselect(f"Select {shot_type} shots",
+        selected_shots = st.sidebar.multiselect(f'Select {shot_type} shots',
             options=type_shots['shot_id'].tolist(),
             default=[],
-            key=f"select_{shot_type}"
+            key=f'select_{shot_type}'
         )
         
         if selected_shots:
@@ -96,14 +96,14 @@ y_pred_rf = rf_model.predict(X_test)
 r2_rf = r2_score(y_test, y_pred_rf)
 rmse_rf = np.sqrt(mse(y_test, y_pred_rf))
 
-st.write("### Random Forest Results")
-st.write(f"R² Score: {r2_rf:.2f}, RMSE: {rmse_rf:.2f}")
+st.write('### Random Forest Results')
+st.write(f'R² Score: {r2_rf:.2f}, RMSE: {rmse_rf:.2f}')
 
 # feature importance
 feature_importances = pd.DataFrame({'Feature': X.columns, 'Importance': rf_model.feature_importances_}).sort_values(by='Importance', ascending=False)
 st.session_state.research_data['feature_importances'] = feature_importances
 
-st.write("### Feature Importance in Random Forest")
+st.write('### Feature Importance in Random Forest')
 fig, ax = plt.subplots()
 ax.barh(feature_importances['Feature'], feature_importances['Importance'], color='lightsteelblue')
 ax.set_xlabel('Feature Importance')
@@ -114,12 +114,12 @@ st.pyplot(fig)
 st.text('With 9 features on hand, we want to know which ones have the most impact on carry. This is why we need to use random forest to find the order of importance for all the features. This technique considers the total weight of each feature (AKA how much impact it has by itself and in conjunction with other features).')
 
 # SVR 
-st.write("### SVR Graphs")
+st.write('### SVR Graphs')
 option = st.selectbox(
-    "Select a feature:",
+    'Select a feature:',
     (X.columns),
     index=0,
-    placeholder="Select a feature...",
+    placeholder='Select a feature...',
 )
 
 X_feature = X[option].to_numpy().reshape(-1, 1)
@@ -219,7 +219,7 @@ st.pyplot(fig)
 st.text('On the graph, we can see the regression line that tries to find the relationship between the feature and carry as a modelable function. The region shaded in red shows the optimal range of values for the feature to maximize carry. The optimal range corresponds with the range of values that the feature can take on in order to reflect what is realistic and feasible.')
 
 # heatmaps
-st.write("### Heatmaps")
+st.write('### Heatmaps')
 def create_heatmap(x, y, z, xlabel, ylabel, title):
     x = pd.to_numeric(x, errors='coerce')
     y = pd.to_numeric(y, errors='coerce')
@@ -246,7 +246,7 @@ def create_heatmap(x, y, z, xlabel, ylabel, title):
     heatmap_smooth = scipy.ndimage.gaussian_filter(interp_func, sigma=2.5)
 
     fig, ax = plt.subplots()
-    c = ax.imshow(heatmap_smooth.T, origin='lower', aspect='auto', extent=[xedges[0], xedges[-1], yedges[0], yedges[-1]], cmap='viridis', interpolation="bilinear")
+    c = ax.imshow(heatmap_smooth.T, origin='lower', aspect='auto', extent=[xedges[0], xedges[-1], yedges[0], yedges[-1]], cmap='viridis', interpolation='bilinear')
     fig.colorbar(c, label='Carry (yards)')
     
     if show_user_shots and not user_df.empty:
@@ -280,22 +280,22 @@ def create_heatmap(x, y, z, xlabel, ylabel, title):
 print(X.columns)
 print(df)
 options = st.multiselect(
-    "Features for Heatmap",
+    'Features for Heatmap',
     X.columns,
-    ["Ball Speed", "Launch Angle"],
+    ['Ball Speed', 'Launch Angle'],
     max_selections=2,
 )
 
 
 create_heatmap(df[options[0]], df[options[1]], df['Carry'], options[0], options[1], f'Heatmap of {options[0]} and {options[1]}')    
 
-st.write("### Optimal Ranges by Feature Interactions")
+st.write('### Optimal Ranges by Feature Interactions')
 
 optimal_df = pd.read_csv('optimal_ranges_combo.csv')
-optimal_df = optimal_df.set_index("Unnamed: 0")
+optimal_df = optimal_df.set_index('Unnamed: 0')
 labels = optimal_df.columns.tolist()
 optimal_df = optimal_df.loc[labels, labels]
-data = optimal_df.fillna("").values.tolist()
+data = optimal_df.fillna('').values.tolist()
 
 def get_range_width(cell):
     try:
@@ -320,11 +320,11 @@ c = ax.imshow(masked_array, cmap='coolwarm')
 
 for i in range(len(labels)):
     for j in range(len(labels)):
-        if data[i][j] != "":
+        if data[i][j] != '':
             if i == j:
                 try:
                     nums = eval(data[i][j])
-                    rounded_text = f"({nums[0]:.2f}, {nums[1]:.2f})"
+                    rounded_text = f'({nums[0]:.2f}, {nums[1]:.2f})'
                 except:
                     rounded_text = data[i][j]
                 ax.text(j, i, rounded_text, ha='center', va='center', color='white', fontsize=15, weight='bold')
@@ -333,7 +333,7 @@ for i in range(len(labels)):
             else:
                 try:
                     nums = eval(data[i][j])
-                    rounded_text = f"({nums[0]:.2f}, {nums[1]:.2f})"
+                    rounded_text = f'({nums[0]:.2f}, {nums[1]:.2f})'
                 except:
                     rounded_text = data[i][j]
                 ax.text(j, i, rounded_text, ha='center', va='center', fontsize=15)
@@ -345,19 +345,19 @@ ax.set_yticklabels(labels, fontsize=30)
 
 cbar = fig.colorbar(c, ax=ax)
 cbar.ax.tick_params(labelsize=20)  
-cbar.set_label("Percentage Difference from Diagonal", fontsize = 20)  
+cbar.set_label('Percentage Difference from Diagonal', fontsize = 20)  
 
 st.pyplot(fig)
-st.markdown("""
+st.markdown('''
 This matrix visualization shows the optimal ranges for different combinations of golf shot features. 
 - The diagonal (dark blue) represents the optimal range for each individual feature
 - The off-diagonal cells show the optimal ranges when considering pairs of features together
 - The color intensity indicates the width of the optimal range (darker = wider range)
 - This helps identify which feature combinations have the most flexibility in their optimal values
-""")
+''')
 
 # feature correlation 
-st.write("### Correlation Between Column Feature and Row Feature ")
+st.write('### Correlation Between Column Feature and Row Feature ')
 
 features = [
     'Club Speed', 'Ball Speed', 'Launch Angle', 'Spin Rate', 'Face Angle',
@@ -383,7 +383,7 @@ st.session_state.research_data.update({
 })
 
 # GMM clustering
-st.write("### Shot Type Clustering Analysis")
+st.write('### Shot Type Clustering Analysis')
 
 df = pd.read_csv('GGXY.csv')
 df = df[(df['Launch Angle'] != '-') & (df['Face to Path'] != '-') & (df['Carry'] != '-')]
@@ -502,14 +502,14 @@ for i in range(n_fades):
     y1 = la_center[1] + la_margin * (i + 1) / n_fades
     ax.axhspan(y0, y1, color='gray', alpha=alphas[i], zorder=0)
 
-plt.title("GMM Clustering of Shot Types (Contact - Direction)")
-plt.xlabel("Face to Path (°)")
-plt.ylabel("Launch Angle (°)")
+plt.title('GMM Clustering of Shot Types (Contact - Direction)')
+plt.xlabel('Face to Path (°)')
+plt.ylabel('Launch Angle (°)')
 plt.grid(True)
 plt.tight_layout()
 st.pyplot(fig)
 
-st.write("### Shot Classification Uncertainty Analysis")
+st.write('### Shot Classification Uncertainty Analysis')
 probs = gmm_contact.predict_proba(X.values)
 
 prob_df = pd.DataFrame(probs, columns=['Cluster 0', 'Cluster 1', 'Cluster 2'])
@@ -526,12 +526,12 @@ for col in ['Cluster 0', 'Cluster 1', 'Cluster 2']:
 uncertain_df['Launch Angle'] = uncertain_df['Launch Angle'].round(2)
 uncertain_df['Face to Path'] = uncertain_df['Face to Path'].round(2)
 uncertain_df['Max Prob'] = (uncertain_df['Max Prob'] * 100).round(0).astype(int).astype(str) + '%'
-st.write("Shots with classification uncertainty (probability < 70%):")
+st.write('Shots with classification uncertainty (probability < 70%):')
 st.dataframe(uncertain_df.head(10))
 
 # user shot stats
 if show_user_shots and not user_df.empty:
-    st.write("### Your Shot Statistics")
+    st.write('### Your Shot Statistics')
     user_stats = user_df.groupby(['Contact Type', 'Direction']).agg({
         'Carry (yards)': ['mean', 'std', 'count'],
         'Launch Angle (Deg)': ['mean', 'std'],

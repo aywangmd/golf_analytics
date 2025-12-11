@@ -60,7 +60,7 @@ with open("StreamlitApp/pages/data/golf_shots_template.csv", "rb") as file:
 st.download_button(
     label="Download Template",
     data=template_bytes,
-    file_name="golf_shots_template.txt",
+    file_name="golf_shots_template.csv",
     mime="text/plain"
 )
 uploaded_file = st.file_uploader('Upload CSV file with shot data', type=['csv'])

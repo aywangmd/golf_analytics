@@ -1,13 +1,3 @@
-# langchain
-# matplotlib
-# langchain_deepseek
-# scikit-learn
-# streamlit_geolocation
-# seaborn
-# python-dotenv
-# geopandas
- 
-# Core app dependencies
 streamlit
 pandas
 numpy

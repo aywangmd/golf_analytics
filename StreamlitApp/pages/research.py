@@ -477,7 +477,7 @@ if show_user_shots and not user_df.empty:
 
 legend_patches = []
 # Add GGXY shots
-    legend_patches.append(Patch(color=color_map[key], label=f'{key[0]} - {key[1]}'))
+legend_patches.append(Patch(color=color_map[key], label=f'{key[0]} - {key[1]}'))
 if show_user_shots and not user_df.empty:
     for key in color_map:
         if any((user_df['Contact Type'] == key[0]) & (user_df['Direction'] == key[1])):

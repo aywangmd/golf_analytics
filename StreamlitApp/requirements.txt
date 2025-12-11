@@ -6,3 +6,4 @@ scikit-learn
 seaborn
 langchain_deepseek
 geopandas
+pydeck

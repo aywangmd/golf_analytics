@@ -2,7 +2,6 @@ streamlit
 pandas
 numpy
 networkx
-sqlite3
 os
 hashlib
 pathlib

@@ -93,175 +93,175 @@ numeric_columns = [
 for col in numeric_columns:
     shots_df[col] = pd.to_numeric(shots_df[col], errors='coerce')
 
-le_shot = LabelEncoder()
-shots_df["shot_type_encoded"] = le_shot.fit_transform(shots_df['Shot Type'])
-X = shots_df[numeric_columns]
-y = shots_df["shot_type_encoded"]
+# le_shot = LabelEncoder()
+# shots_df["shot_type_encoded"] = le_shot.fit_transform(shots_df['Shot Type'])
+# X = shots_df[numeric_columns]
+# y = shots_df["shot_type_encoded"]
 
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+# X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-model = RandomForestClassifier(n_estimators=100, random_state=42)
-model.fit(X_train, y_train)
+# model = RandomForestClassifier(n_estimators=100, random_state=42)
+# model.fit(X_train, y_train)
 
-def predict_next_shot(distance, lat, lon, shot_number):
-    if shot_number == 1:  # assume first will always be a drive
-        return 'Drive'
-    elif distance > 50:  
-        return 'Iron Shot' if distance > 100 else 'Approach'
-    elif distance > 20:  
-        return 'Chip' # change to chip/pitch?
-    else:  
-        return 'Putt'
+# def predict_next_shot(distance, lat, lon, shot_number):
+#     if shot_number == 1:  # assume first will always be a drive
+#         return 'Drive'
+#     elif distance > 50:  
+#         return 'Iron Shot' if distance > 100 else 'Approach'
+#     elif distance > 20:  
+#         return 'Chip' # change to chip/pitch?
+#     else:  
+#         return 'Putt'
 
-def calculate_shot_endpoint(start_lat, start_lon, distance, angle):
-    distance_deg = distance * 0.00001
-    end_lat = start_lat + (distance_deg * np.sin(np.radians(angle)))
-    end_lon = start_lon + (distance_deg * np.cos(np.radians(angle)))
-    return end_lat, end_lon
+# def calculate_shot_endpoint(start_lat, start_lon, distance, angle):
+#     distance_deg = distance * 0.00001
+#     end_lat = start_lat + (distance_deg * np.sin(np.radians(angle)))
+#     end_lon = start_lon + (distance_deg * np.cos(np.radians(angle)))
+#     return end_lat, end_lon
 
-def simulate_round(hole_data):
-    shots = []
-    current_lat, current_lon = hole_data["tee"]
-    green_lat, green_lon = hole_data["green"]
+# def simulate_round(hole_data):
+#     shots = []
+#     current_lat, current_lon = hole_data["tee"]
+#     green_lat, green_lon = hole_data["green"]
     
-    shot_number = 1
+#     shot_number = 1
     
-    while True:
-        distance = np.sqrt((current_lat - green_lat)**2 + (current_lon - green_lon)**2) * 111000  # meters
-        distance_yards = distance * 1.09361 # yards
+#     while True:
+#         distance = np.sqrt((current_lat - green_lat)**2 + (current_lon - green_lon)**2) * 111000  # meters
+#         distance_yards = distance * 1.09361 # yards
         
-        if distance_yards < 2:  # 2 yds tolerance for holing out
-            break
+#         if distance_yards < 2:  # 2 yds tolerance for holing out
+#             break
             
-        shot_type = predict_next_shot(distance_yards, current_lat, current_lon, shot_number)
-        shot_type_stats = shots_df[shots_df['Shot Type'] == shot_type]['Carry (yards)'].mean()
-        carry_distance = float(shot_type_stats)
+#         shot_type = predict_next_shot(distance_yards, current_lat, current_lon, shot_number)
+#         shot_type_stats = shots_df[shots_df['Shot Type'] == shot_type]['Carry (yards)'].mean()
+#         carry_distance = float(shot_type_stats)
         
-        if shot_type == 'Putt':
-            carry_distance = min(distance_yards, 20)  # assume putts don't go past the hole (lol)
-        elif shot_type == 'Chip':
-            carry_distance = min(distance_yards, 50)
+#         if shot_type == 'Putt':
+#             carry_distance = min(distance_yards, 20)  # assume putts don't go past the hole (lol)
+#         elif shot_type == 'Chip':
+#             carry_distance = min(distance_yards, 50)
         
-        angle = np.arctan2(green_lat - current_lat, green_lon - current_lon)
-        next_lat, next_lon = calculate_shot_endpoint(current_lat, current_lon, carry_distance, np.degrees(angle))
+#         angle = np.arctan2(green_lat - current_lat, green_lon - current_lon)
+#         next_lat, next_lon = calculate_shot_endpoint(current_lat, current_lon, carry_distance, np.degrees(angle))
         
-        shots.append({
-            'lat': current_lat,
-            'lon': current_lon,
-            'lat': next_lat,
-            'lon2': next_lon,
-            'shot_type': shot_type,
-            'shot_number': shot_number,
-            'distance_to_hole': round(distance_yards, 1),
-            'carry': round(carry_distance, 1)
-        })
+#         shots.append({
+#             'lat': current_lat,
+#             'lon': current_lon,
+#             'lat': next_lat,
+#             'lon2': next_lon,
+#             'shot_type': shot_type,
+#             'shot_number': shot_number,
+#             'distance_to_hole': round(distance_yards, 1),
+#             'carry': round(carry_distance, 1)
+#         })
         
-        current_lat, current_lon = next_lat, next_lon
-        shot_number += 1
+#         current_lat, current_lon = next_lat, next_lon
+#         shot_number += 1
     
-    return pd.DataFrame(shots)
+#     return pd.DataFrame(shots)
 
-# CAN CHANGE; CLIFTON HOLE 1 RN
-hole_data = course_data['Clifton Park']['holes'][1]
+# # CAN CHANGE; CLIFTON HOLE 1 RN
+# hole_data = course_data['Clifton Park']['holes'][1]
 
-all_simulations = []
-for _ in range(num_simulations):
-    simulation = simulate_round(hole_data)
-    all_simulations.append(simulation)
+# all_simulations = []
+# for _ in range(num_simulations):
+#     simulation = simulate_round(hole_data)
+#     all_simulations.append(simulation)
 
-# VISUALIZATION BELOW
-layers = [
-    # fairway
-    pdk.Layer(
-        'PolygonLayer',
-        data=[{
-            'coordinates': hole_data['fairway'],
-            'color': [152, 251, 152, 120]
-        }],
-        get_polygon='coordinates',
-        get_fill_color='color',
-        get_line_color=[0, 0, 0],
-        line_width_min_pixels=2,
-    ),
+# # VISUALIZATION BELOW
+# layers = [
+#     # fairway
+#     pdk.Layer(
+#         'PolygonLayer',
+#         data=[{
+#             'coordinates': hole_data['fairway'],
+#             'color': [152, 251, 152, 120]
+#         }],
+#         get_polygon='coordinates',
+#         get_fill_color='color',
+#         get_line_color=[0, 0, 0],
+#         line_width_min_pixels=2,
+#     ),
 
-    # green
-    pdk.Layer(
-        'PolygonLayer',
-        data=[{
-            'coordinates': [
-                (hole_data['green'][0] - 0.00005, hole_data['green'][1] - 0.00005),
-                (hole_data['green'][0] + 0.00005, hole_data['green'][1] - 0.00005),
-                (hole_data['green'][0] + 0.00005, hole_data['green'][1] + 0.00005),
-                (hole_data['green'][0] - 0.00005, hole_data['green'][1] + 0.00005)
-            ],
-            'color': [0, 100, 0, 120]
-        }],
-        get_polygon='coordinates"',
-        get_fill_color='color',
-        get_line_color=[0, 0, 0],
-        line_width_min_pixels=2,
-    )
-]
+#     # green
+#     pdk.Layer(
+#         'PolygonLayer',
+#         data=[{
+#             'coordinates': [
+#                 (hole_data['green'][0] - 0.00005, hole_data['green'][1] - 0.00005),
+#                 (hole_data['green'][0] + 0.00005, hole_data['green'][1] - 0.00005),
+#                 (hole_data['green'][0] + 0.00005, hole_data['green'][1] + 0.00005),
+#                 (hole_data['green'][0] - 0.00005, hole_data['green'][1] + 0.00005)
+#             ],
+#             'color': [0, 100, 0, 120]
+#         }],
+#         get_polygon='coordinates"',
+#         get_fill_color='color',
+#         get_line_color=[0, 0, 0],
+#         line_width_min_pixels=2,
+#     )
+# ]
 
-# hazards
-if show_hazards:
-    for hazard in hole_data['hazards']:
-        layers.append(
-            pdk.Layer(
-                'PolygonLayer',
-                data=[{
-                    'coordinates': hazard['coordinates'],
-                    'color': [255, 255, 0, 120] if hazard['type'] == 'bunker' else [0, 0, 255, 100]
-                }],
-                get_polygon='coordinates',
-                get_fill_color='color',
-                get_line_color=[0, 0, 0],
-                line_width_min_pixels=2,
-            )
-        )
+# # hazards
+# if show_hazards:
+#     for hazard in hole_data['hazards']:
+#         layers.append(
+#             pdk.Layer(
+#                 'PolygonLayer',
+#                 data=[{
+#                     'coordinates': hazard['coordinates'],
+#                     'color': [255, 255, 0, 120] if hazard['type'] == 'bunker' else [0, 0, 255, 100]
+#                 }],
+#                 get_polygon='coordinates',
+#                 get_fill_color='color',
+#                 get_line_color=[0, 0, 0],
+#                 line_width_min_pixels=2,
+#             )
+#         )
 
-shot_colors = {
-    "Drive": [255, 0, 0, 160],      #red
-    "Iron Shot": [255, 165, 0, 160],  # orange
-    "Approach": [255, 255, 0, 160],   # yellow
-    "Chip": [0, 255, 0, 160],        # green
-    "Putt": [0, 0, 255, 160]         # blue
-}
+# shot_colors = {
+#     "Drive": [255, 0, 0, 160],      #red
+#     "Iron Shot": [255, 165, 0, 160],  # orange
+#     "Approach": [255, 255, 0, 160],   # yellow
+#     "Chip": [0, 255, 0, 160],        # green
+#     "Putt": [0, 0, 255, 160]         # blue
+# }
 
-for i, simulation in enumerate(all_simulations):
-    simulation['color'] = simulation['shot_type'].map(shot_colors)
+# for i, simulation in enumerate(all_simulations):
+#     simulation['color'] = simulation['shot_type'].map(shot_colors)
     
-    layers.extend([
-        pdk.Layer(
-            'ArcLayer',
-            data=simulation,
-            get_source_position=['lon', 'lat'],
-            get_target_position=['lon2', 'lat2'],
-            get_source_color='color',
-            get_target_color='color',
-            auto_highlight=True,
-            width_scale=0.0001,
-            get_width='distance / 50',
-            width_min_pixels=2,
-            width_max_pixels=5,
-        ),
-        pdk.Layer(
-            'ScatterplotLayer',
-            data=simulation,
-            get_position=['lon2', 'lat2'],
-            get_color='color',
-            get_radius=5,
-        ),
-        pdk.Layer(
-            'TextLayer',
-            data=simulation,
-            get_position=['lon2', 'lat2'],
-            get_text='shot_type',
-            get_color=[255, 255, 255, 200],  
-            get_size=12,
-            get_alignment_baseline='bottom',
-        )
-    ])
+#     layers.extend([
+#         pdk.Layer(
+#             'ArcLayer',
+#             data=simulation,
+#             get_source_position=['lon', 'lat'],
+#             get_target_position=['lon2', 'lat2'],
+#             get_source_color='color',
+#             get_target_color='color',
+#             auto_highlight=True,
+#             width_scale=0.0001,
+#             get_width='distance / 50',
+#             width_min_pixels=2,
+#             width_max_pixels=5,
+#         ),
+#         pdk.Layer(
+#             'ScatterplotLayer',
+#             data=simulation,
+#             get_position=['lon2', 'lat2'],
+#             get_color='color',
+#             get_radius=5,
+#         ),
+#         pdk.Layer(
+#             'TextLayer',
+#             data=simulation,
+#             get_position=['lon2', 'lat2'],
+#             get_text='shot_type',
+#             get_color=[255, 255, 255, 200],  
+#             get_size=12,
+#             get_alignment_baseline='bottom',
+#         )
+#     ])
 
 st.pydeck_chart(
     pdk.Deck(
@@ -334,7 +334,6 @@ def geoplot_hole_latlon(hole_number):
     ax.set_title(f'Hole {hole_number}')
     plt.xlabel("Longitude")
     plt.ylabel("Latitude")
-    plt.legend()
     st.pyplot(fig)
     
 geoplot_hole_latlon(hole_number)

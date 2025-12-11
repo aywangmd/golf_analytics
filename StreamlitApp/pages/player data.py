@@ -89,7 +89,6 @@ if uploaded_file is not None:
                     [st.session_state['golf_data'], new_shots_df], ignore_index=True
                 )
                 st.success(f'Successfully imported {len(new_shots_df)} shots!')
-                st.rerun()
                 
     except Exception as e:
         st.error(f'Error processing CSV file: {str(e)}')

@@ -32,66 +32,39 @@ course_data = {
         'holes': {
             1: {
                 'tee': (39.32592099564656, -76.5843713165854),
-                'green': (39.32237917682804, -76.58753409610676),
-                'fairway': [
-                    (39.3202193906142, -76.57967450138088),
-                    (39.3212193906142, -76.58067450138088),
-                    (39.3222193906142, -76.58567450138088),
-                    (39.32318903778765, -76.58700524418536),
-                    (39.3222193906142, -76.58567450138088),
-                    (39.3212193906142, -76.58067450138088),
-                    (39.3202193906142, -76.57967450138088)
-                ],
-                'hazards': [
-                    {
-                        'type': 'bunker',
-                        'coordinates': [
-                            (39.32218903778765, -76.58600524418536),
-                            (39.32228903778765, -76.58600524418536),
-                            (39.32228903778765, -76.58610524418536),
-                            (39.32218903778765, -76.58610524418536)
-                        ]
-                    },
-                    {
-                        'type': 'water',
-                        'coordinates': [
-                            (39.32118903778765, -76.58300524418536),
-                            (39.32138903778765, -76.58300524418536),
-                            (39.32138903778765, -76.58320524418536),
-                            (39.32118903778765, -76.58320524418536)
-                        ]
-                    }
-                ]
+            }
+            2: {
+                'tee': (39.32592099564656, -76.5843713165854),
             }
         }
     }
 }
 
 
-user_shots = get_user_shots(st.session_state.user_id)
-if not user_shots:
-    st.warning('No shot data available. Please log some shots first.')
-    st.stop()
+# user_shots = get_user_shots(st.session_state.user_id)
+# if not user_shots:
+#     st.warning('No shot data available. Please log some shots first.')
+#     st.stop()
 
-if len(user_shots) > 0:
-    shots_df = pd.DataFrame(user_shots, columns=[
-        'id', 'user_id', 'Shot Type', 'Carry (yards)', 'Club Speed (MPH)',
-        'Ball Speed (MPH)', 'Launch Angle (Deg)', 'Spin Rate (RPM)',
-        'Face Angle (Deg)', 'Face to Path (Deg)', 'Club Path (Deg)',
-        'Attack Angle (Deg)', 'Launch Direction (Deg)', 'timestamp'
-    ])
-else:
-    shots_df = pd.DataFrame()
+# if len(user_shots) > 0:
+#     shots_df = pd.DataFrame(user_shots, columns=[
+#         'id', 'user_id', 'Shot Type', 'Carry (yards)', 'Club Speed (MPH)',
+#         'Ball Speed (MPH)', 'Launch Angle (Deg)', 'Spin Rate (RPM)',
+#         'Face Angle (Deg)', 'Face to Path (Deg)', 'Club Path (Deg)',
+#         'Attack Angle (Deg)', 'Launch Direction (Deg)', 'timestamp'
+#     ])
+# else:
+#     shots_df = pd.DataFrame()
 
-numeric_columns = [
-    'Carry (yards)', 'Club Speed (MPH)', 'Ball Speed (MPH)',
-    'Launch Angle (Deg)', 'Spin Rate (RPM)', 'Face Angle (Deg)',
-    'Face to Path (Deg)', 'Club Path (Deg)', 'Attack Angle (Deg)',
-    'Launch Direction (Deg)'
-]
+# numeric_columns = [
+#     'Carry (yards)', 'Club Speed (MPH)', 'Ball Speed (MPH)',
+#     'Launch Angle (Deg)', 'Spin Rate (RPM)', 'Face Angle (Deg)',
+#     'Face to Path (Deg)', 'Club Path (Deg)', 'Attack Angle (Deg)',
+#     'Launch Direction (Deg)'
+# ]
 
-for col in numeric_columns:
-    shots_df[col] = pd.to_numeric(shots_df[col], errors='coerce')
+# for col in numeric_columns:
+#     shots_df[col] = pd.to_numeric(shots_df[col], errors='coerce')
 
 # le_shot = LabelEncoder()
 # shots_df["shot_type_encoded"] = le_shot.fit_transform(shots_df['Shot Type'])
@@ -267,8 +240,8 @@ st.pydeck_chart(
     pdk.Deck(
         map_style='mapbox://styles/mapbox/satellite-streets-v11',
         initial_view_state={
-            'latitude': course_data["Clifton Park"][1]["tee"][0],
-            'longitude': course_data["Clifton Park"][1]["tee"][1],
+            'latitude': course_data['Clifton Park']['holes'][hole_number]['tee'][0],
+            'longitude': course_data['Clifton Park']['holes'][hole_number]['tee'][1],
             'zoom': 18,
             'pitch': 60,
         },

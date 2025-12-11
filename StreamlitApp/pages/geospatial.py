@@ -267,8 +267,8 @@ st.pydeck_chart(
     pdk.Deck(
         map_style='mapbox://styles/mapbox/satellite-streets-v11',
         initial_view_state={
-            'latitude': hole_data["tee"][0],
-            'longitude': hole_data["tee"][1],
+            'latitude': course_data["tee"][0],
+            'longitude': course_data["tee"][1],
             'zoom': 18,
             'pitch': 60,
         },

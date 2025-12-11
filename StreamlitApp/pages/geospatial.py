@@ -267,8 +267,8 @@ st.pydeck_chart(
     pdk.Deck(
         map_style='mapbox://styles/mapbox/satellite-streets-v11',
         initial_view_state={
-            'latitude': course_data["tee"][0],
-            'longitude': course_data["tee"][1],
+            'latitude': course_data["Clifton Park"][1]["tee"][0],
+            'longitude': course_data["Clifton Park"][1]["tee"][1],
             'zoom': 18,
             'pitch': 60,
         },

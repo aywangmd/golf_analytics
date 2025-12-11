@@ -55,6 +55,14 @@ attack_angle = st.number_input('Attack Angle (Deg):', min_value=-10.0, max_value
 launch_direction = st.number_input('Launch Direction (Deg):', min_value=-20.0, max_value=20.0, step=0.1)
 
 st.markdown('### Import Shots from CSV')
+with open("data/golf_shots_template.csv", "rb") as file:
+    template_bytes = file.read()
+st.download_button(
+    label="Download Template",
+    data=template_bytes,
+    file_name="golf_shots_template.txt",
+    mime="text/plain"
+)
 uploaded_file = st.file_uploader('Upload CSV file with shot data', type=['csv'])
 
 if uploaded_file is not None:

@@ -347,7 +347,7 @@ def geoplot_hole(hole_number):
     hole_bunkers = bunkers[bunkers['hole'] == hole_number].copy()
     hole_tees = tees[tees['hole'] == hole_number].copy()
     
-    tee_centroid = hole_tees.geometry.unary_union.centroid
+    tee_centroid = hole_tees.geometry.union_all().centroid
     
     # center
     hole_tees['geometry'] = hole_tees.translate(xoff=-tee_centroid.x, yoff=-tee_centroid.y)
@@ -356,7 +356,7 @@ def geoplot_hole(hole_number):
     hole_greens['geometry'] = hole_greens.translate(xoff=-tee_centroid.x, yoff=-tee_centroid.y)
     
     # rotate
-    green_centroid = hole_greens.geometry.unary_union.centroid
+    green_centroid = hole_greens.geometry.union_all().centroid
     dx = green_centroid.x
     dy = green_centroid.y
     angle = np.degrees(np.arctan2(dx, dy))  # green is "up"
@@ -385,7 +385,6 @@ def geoplot_hole(hole_number):
     ax.set_title(f'Hole {hole_number}')
     plt.xlabel("Yards Left/Right of Line of Play")
     plt.ylabel("Yards from Tee")
-    plt.legend()
     plt.axis('equal')
     st.pyplot(fig)
 

@@ -11,8 +11,8 @@ import matplotlib.pyplot as plt
 from shapely import wkt
 from shapely.affinity import translate, rotate
 
-st.set_page_config(page_title='Golf Course Simulation', page_icon='⛳')
-st.markdown('# Golf Course Simulation')
+st.set_page_config(page_title='Golf Course Visualization', page_icon='⛳')
+st.markdown('# Golf Course Visualization')
 
 if 'user_id' not in st.session_state or not st.session_state.user_id:
     st.warning('Please login to access this page.')
@@ -41,17 +41,17 @@ course_data = {
 }
 
 
-st.pydeck_chart(
-    pdk.Deck(
-        map_style='mapbox://styles/mapbox/satellite-streets-v11',
-        initial_view_state={
-            'latitude': course_data['Clifton Park']['holes'][hole_number]['tee'][0],
-            'longitude': course_data['Clifton Park']['holes'][hole_number]['tee'][1],
-            'zoom': 18,
-            'pitch': 60,
-        },
-    )
-)
+# st.pydeck_chart(
+#     pdk.Deck(
+#         map_style='mapbox://styles/mapbox/satellite-streets-v11',
+#         initial_view_state={
+#             'latitude': course_data['Clifton Park']['holes'][hole_number]['tee'][0],
+#             'longitude': course_data['Clifton Park']['holes'][hole_number]['tee'][1],
+#             'zoom': 18,
+#             'pitch': 60,
+#         },
+#     )
+# )
 
 def geoplot_single(data, name):
     if 'geometry' not in data.columns:

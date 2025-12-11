@@ -9,7 +9,7 @@ from typing import Optional
 
 
 @st.cache_data
-def load_data(path: str = 'PGA_Data.csv') -> pd.DataFrame:
+def load_data(path: str = 'data/PGA_Data.csv') -> pd.DataFrame:
     import os
 
     candidates = [path, os.path.join('StreamlitApp', 'pages', 'PGA_Data.csv'), os.path.join('..', 'PGA_Data.csv'), os.path.join('..', '..', 'PGA_Data.csv'), os.path.join('..', 'golfanalytics', 'PGA_Data.csv'), os.path.join('..', 'golf_analytics', 'PGA_Data.csv'), os.path.join('..', 'StreamlitApp', 'pages', 'PGA_Data.csv')]

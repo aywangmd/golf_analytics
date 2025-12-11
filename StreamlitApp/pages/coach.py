@@ -8,10 +8,10 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import r2_score, mean_squared_error as mse
 import os
-from dotenv import load_dotenv
+# from dotenv import load_dotenv
 from auth import get_user_shots
 
-load_dotenv()
+# load_dotenv()
 
 if 'user_id' not in st.session_state or not st.session_state.user_id:
     st.warning('Please login to access this page.')
@@ -19,7 +19,8 @@ if 'user_id' not in st.session_state or not st.session_state.user_id:
 
 st.set_page_config(page_title='Virtual Golf Coach')
 st.title('Virtual Golf Coach')
-deepseek_api_key = os.getenv('DEEPSEEK_API_KEY')
+# deepseek_api_key = os.getenv('DEEPSEEK_API_KEY')
+deepseek_api_key = st.secrets['api_key']
 
 def load_research_data():
     try:

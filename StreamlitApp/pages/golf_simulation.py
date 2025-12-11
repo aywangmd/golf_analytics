@@ -182,7 +182,7 @@ wind_factor = st.sidebar.slider("Wind Factor", 0.0, 2.0, 1.0, 0.1)
 
 # Simulation parameters
 st.sidebar.subheader("Simulation Parameters")
-n_simulations = st.sidebar.slider("Number of Rounds", min_value=100, max_value=10000, value=500, step=100)
+n_simulations = st.sidebar.slider("Number of Rounds", min_value=0, max_value=1000, value=100, step=50)
 show_details = st.sidebar.checkbox("Show Detailed Analysis", value=False)
 
 class GolfSimulator:
@@ -911,7 +911,7 @@ def visualize_full_round(simulator, hole_distances):
                 # Use visualize_single_simulation for each hole
                 visualize_single_simulation(simulator, hole_num, hole_distance)
 
-def run_statistical_simulation(simulator, hole_distances, n_simulations=10000):
+def run_statistical_simulation(simulator, hole_distances, n_simulations=100):
     """Run simulations without visualizations and show detailed statistics"""
     all_round_scores = []
     all_hole_details = []

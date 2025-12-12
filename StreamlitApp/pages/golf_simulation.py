@@ -905,9 +905,11 @@ def visualize_full_round(simulator, hole_distances):
         
         if not hole_tees.empty and not hole_greens.empty:
             # Get strokes for this hole from summary
-            hole_strokes = next((r['Strokes'] for r in hole_results if r['Hole'] == hole_num), None)
+            # print(hole_results)
+            # hole_strokes = hole_results[hole_num-1]['Strokes']
             
-            with st.expander(f"🏌️ Hole {hole_num} - {hole_strokes} Strokes" if hole_strokes else f"🏌️ Hole {hole_num}"):
+            # with st.expander(f"🏌️ Hole {hole_num} - {hole_strokes} Strokes" if hole_strokes else f"🏌️ Hole {hole_num}"):
+            with st.expander(f"🏌️ Hole {hole_num}"):
                 # Use visualize_single_simulation for each hole
                 visualize_single_simulation(simulator, hole_num, hole_distance)
 

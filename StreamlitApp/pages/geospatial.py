@@ -40,7 +40,7 @@ course_data = {
     }
 }
 
-
+# doesn't work when deployed
 # st.pydeck_chart(
 #     pdk.Deck(
 #         map_style='mapbox://styles/mapbox/satellite-streets-v11',

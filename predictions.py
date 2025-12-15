@@ -12,7 +12,7 @@ def direction(face_angle, face_to_path):
 def final(dist, degrees):
     return dist / math.cos(math.radians(degrees))
 
-# Prediction Example
+# Example
 st.subheader("Predict Carry Distance")
 ball_speed = st.slider("Ball Speed (MPH)", 100, 200, 150)
 launch_angle = st.slider("Launch Angle (Deg)", 0, 20, 10)

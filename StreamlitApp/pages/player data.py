@@ -12,7 +12,6 @@ st.markdown('# Golf Shot Logger')
 
 shots = get_user_shots(st.session_state.user_id)
 if shots:
-    # Convert shots to DataFrame
     if len(shots) > 0:
         df = pd.DataFrame(shots, columns=[
             'id', 'user_id', 'Shot Type', 'Carry (yards)', 'Club Speed (MPH)',

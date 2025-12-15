@@ -12,7 +12,7 @@ def main():
     st.markdown("---")
     st.header("Course distances & shot distributions")
 
-    # Course distances input
+    # course distances input
     units = st.radio("Units", options=["yards", "feet"], index=0, horizontal=True)
     # conversion helpers: we'll store everything internally in yards
     def to_yards(x):

@@ -142,11 +142,9 @@ def delete_user_shot(shot_id):
 def show_auth_page():
     st.title("Golf Analytics - Authentication")
     
-    # Initialize session state
     if 'user_id' not in st.session_state:
         st.session_state.user_id = None
     
-    # Initialize database
     init_db()
     
     # Login/Signup tabs

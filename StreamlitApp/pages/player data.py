@@ -4,6 +4,7 @@ from auth import get_user_shots, save_user_shot, delete_user_shot
 
 st.set_page_config(page_title='Golf Shot Logger', page_icon='⛳')
 
+# auth
 if 'user_id' not in st.session_state or not st.session_state.user_id:
     st.warning('Please login to access this page.')
     st.stop()

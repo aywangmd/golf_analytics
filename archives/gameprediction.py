@@ -14,7 +14,6 @@ def main():
 
     # course distances input
     units = st.radio("Units", options=["yards", "feet"], index=0, horizontal=True)
-    # conversion helpers: we'll store everything internally in yards
     def to_yards(x):
         return x if units == "yards" else x / 3.0
     def from_yards(x):
@@ -39,7 +38,6 @@ def main():
     pos["Rough"] = pos["Green"] + to_yards(d_rough_green)
     pos["Bunker"] = pos["Green"] + to_yards(d_bunker_green)
 
-    # Optional: custom pairwise distance overrides (display in chosen units)
     custom_distances = {}
     with st.expander("Optional: override distances for any origin -> target pair"):
         st.caption("Leave blank to use defaults derived from the linear tee->fairway->green->hole model.")

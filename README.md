@@ -1,6 +1,8 @@
 # Golf Analytics
 
-## Instructions
+https://golfanalytics.streamlit.app/
+
+## Instructions for Running Locally
 
 1. Install the Streamlit package
 ```pip install streamlit ```
@@ -12,7 +14,7 @@
 ```streamlit run ~/StreamlitApp/welcome.py```
 
 
-## Dependencies
+### Dependencies
 ```
 streamlit
 pandas
@@ -26,7 +28,7 @@ pydeck
 shapely
 ```
 
-## Dashboard Pages
+### Dashboard Pages
 - welcome.py: basic overview of app
 - auth.py: sign up, log in
 - player data.py: players can input data in the form of csv or input boxes
